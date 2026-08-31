@@ -1,10 +1,10 @@
 import warnings
 warnings.filterwarnings("ignore")
 
-from src.config_loader import Config
-from src.loader import load_prep
-from src.genetic_selector import Genetic_selector
-from src.evaluate import plot_evolution, evaluate_model, prob_mutation_impact
+from src.utils.config_loader import Config
+from src.data.loader import load_prep
+from src.genetic.selector import Genetic_selector
+from src.evaluation.evaluator import plot_evolution, evaluate_model, prob_mutation_impact
 import numpy as np
 
 def main(config_path="config.yaml"):

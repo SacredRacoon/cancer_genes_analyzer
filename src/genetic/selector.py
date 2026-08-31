@@ -1,5 +1,5 @@
 import numpy as np
-from .models import Model
+from ..models import Model
 from sklearn.model_selection import cross_val_score
 from tqdm import tqdm
 

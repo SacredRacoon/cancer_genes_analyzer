@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
-from .models import Model
+from ..models import Model
 
 def plot_evolution(history,save_path = "output/fitness_history.png"):
     fig,ax = plt.subplots(figsize=(12,6))
@@ -28,10 +28,10 @@ def plot_evolution(history,save_path = "output/fitness_history.png"):
 
 def evaluate_model(x, y, selected_indices, feature_names, 
                    model_config=None,
-                   save_model_path="output/best_model.pkl",
-                   features_save_path="output/selected_features.json",
-                   feature_importance_path="output/feature_importance.png",
-                   confusion_matrix_path="output/confusion_matrix.png"):
+                   save_model_path="output/models/best_model.pkl",
+                   features_save_path="output/reports/selected_features.json",
+                   feature_importance_path="output/plots/feature_importance.png",
+                   confusion_matrix_path="output/plots/confusion_matrix.png"):
 
     x_selected = x[:, selected_indices]
     selected_names = [feature_names[i] for i in selected_indices]
