@@ -1,4 +1,3 @@
-
 #Параметры генетического алгоритма
 ga:
   population_size: 150     
@@ -8,6 +7,8 @@ ga:
   random_state: 228
   elitism_ratio: 0.03      
   min_features: 3
+  early_stopping_rounds: 15
+  stagnation_threshold: 0.0005
 
 #Выбор модели
 model:
@@ -51,60 +52,26 @@ cv:
   cv: 5
   scoring: 'f1_macro'
 
+#Правила парсинга
+data_parsing:
+  mutation_indicator: "MUTATED"
+  target_column: "Grade"
+  target_positive_class: "GBM"
+  age_column: "Age_at_diagnosis"
+  sex_column: "Gender"
+  sex_positive_class: "Male"
+  metadata_columns:
+    - "Grade"
+    - "Age_at_diagnosis"
+    - "Gender"
+    - "ID"
+    - "Sample_ID"
+    - "Patient_ID"
 #Пути
 paths:
   raw_data: "data/raw/TCGA_GBM_LGG_Mutations_all.csv"
   output_dir: "output"
-  model_save: "output/best_model.pkl"
-  features_save: "output/selected_features.json"
-  fitness_plot: "output/fitness_history.png"
-  importance_plot: "output/feature_importance.png"
-  confusion_matrix_plot: "output/confusion_matrix.png"
-
-#Гены (Добавить чтение генов из таблицы путем нахождения значений mutated и т.д.)
-genes:
-  - IDH1
-  - TP53
-  - ATRX
-  - PTEN
-  - EGFR
-  - CIC
-  - MUC16
-  - PIK3CA
-  - NF1
-  - PIK3R1
-  - FUBP1
-  - RB1
-  - NOTCH1
-  - BCOR
-  - CSMD3
-  - SMARCA4
-  - GRIN2A
-  - IDH2
-  - FAT4
-  - PDGFRA
-
-#Тестовый пациент
-test_patient:
-  IDH1: 'MUTATED'
-  TP53: 'MUTATED'
-  ATRX: 'NOT_MUTATED'
-  PTEN: 'NOT_MUTATED'
-  EGFR: 'NOT_MUTATED'
-  CIC: 'NOT_MUTATED'
-  MUC16: 'NOT_MUTATED'
-  PIK3CA: 'NOT_MUTATED'
-  NF1: 'NOT_MUTATED'
-  PIK3R1: 'NOT_MUTATED'
-  FUBP1: 'MUTATED'
-  RB1: 'NOT_MUTATED'
-  NOTCH1: 'NOT_MUTATED'
-  BCOR: 'NOT_MUTATED'
-  CSMD3: 'NOT_MUTATED'
-  SMARCA4: 'NOT_MUTATED'
-  GRIN2A: 'NOT_MUTATED'
-  IDH2: 'NOT_MUTATED'
-  FAT4: 'NOT_MUTATED'
-  PDGFRA: 'NOT_MUTATED'
-  age_years: 51
-  sex: 1
+  models_dir: "output/models"
+  reports_dir: "outputs/reports"
+  plots_dir: "output/plots"
+  log_file: "output/logs/app.log"
