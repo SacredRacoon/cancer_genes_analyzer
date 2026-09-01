@@ -1,65 +1,62 @@
 import warnings
+import logging
+import numpy as np
 warnings.filterwarnings("ignore")
 
+from src.utils.logger import setup_logger
+from src.utils.paths import PathManager
 from src.utils.config_loader import Config
-from src.data.loader import load_prep
-from src.genetic.selector import Genetic_selector
-from src.evaluation.evaluator import plot_evolution, evaluate_model, prob_mutation_impact
-import numpy as np
+from src.data.preprocessor import DataPreprocessor
+from src.genetic.selector import GeneticSelector
+from src.evaluation.evaluator import ModelEvaluator
+from src.evaluation.visualizer import ResultVisualizer
 
-def main(config_path="config.yaml"):
-    print("конфиг грузится")
+def main(config_path: str = "config.yaml"):
     config = Config(config_path)
-    config.print_config()
-    config.create_output_dirs()
-    
-    print("грузятся данные")
-    x, y, feature_names, df = load_prep(
-        config.get_paths()['raw_data'],
-        genes=config.get_genes()
-    )
-    
-    print("запускаем га")
-    ga = Genetic_selector( 
-        x=x,
-        y=y,
-        feature_name=feature_names,
-        **config.get_ga_params(),
-        model_config=config.get_model_params(),
-        cv_params=config.get_cv_params()
-    )
-    
+    paths = PathManager(config.config)
+    paths.ensure_dirs()
+
+    logger = setup_logger(name="GA_Glioma", log_file=str(paths.log_file), level=logging.INFO)
+    logger.info("Starting GA glioma analysis pipeline")
+
+    logger.info("Loading and preprocesssing data")
+    preprocessor = DataPreprocessor(config.config)
+    x, y, feature_names, df = preprocessor.load_and_process(str(paths.raw_data))
+
+    if x.size == 0:
+        logger.error("Data loading failed")
+        return
+
+    logger.info("Init genetic selector")
+    ga = GeneticSelector(x=x, y=y, feature_names=feature_names, config=config.config)
     best_chromosome, best_fitness, best_features = ga.run(verbose=True)
 
-    print("визуализация")
-    plot_evolution(ga.history, save_path=config.get_paths()['fitness_plot'])
-    
-    print("обучаем финальную модель")
+    logger.info("Plotting GA evolution")
+    visualizer = ResultVisualizer(paths)
+    visualizer.plot_evolution(ga.history)
+
+    logger.info("Evaluating and saving final model")
+    evaluator = ModelEvaluator(config.config, paths)
     selected_indices = np.where(best_chromosome == 1)[0]
-    model, importance_df = evaluate_model(
-        x, y, selected_indices, feature_names,
-        model_config=config.get_model_params(),
-        save_model_path=config.get_paths()['model_save'],
-        features_save_path=config.get_paths()['features_save'],
-        feature_importance_path=config.get_paths()['importance_plot'],
-        confusion_matrix_path=config.get_paths()['confusion_matrix_plot']
+
+    evel_results = evaluator.evaluate_and_save(x, y, selected_indices, feature_names)
+
+    visualizer.plot_feature_importance(evel_results['importance_df'])
+    visualizer.plot_confusion_matrix(evel_results['y_test'], evel_results['y_pred'])
+
+    logger.info("Running prediction for test patient")
+    test_patient = config.get_test_patient()
+    prediction_result = evaluator.predict_patient(
+        patient_data=test_patient,
+        model=evel_results['model'],
+        selected_features=best_features
+        feature_names=feature_names
     )
-    
 
-    print(f"предсказание для тестового чувака")
-    
-    result = prob_mutation_impact(
-        model,
-        config.get_test_patient(),
-        [feature_names[i] for i in selected_indices]
-    )
-    
-    print("Результат предсказания")
-    for key, value in result.items():
-        print(f"  {key}: {value}")
-    
-    print(f"Результаты в {config.get_paths()['output_dir']}")
+    logger.info(f"Test patient predict {prediction_result['prediction']}")
+    logger.info(f"Probabilities LGG={prediction_result['probabilities']['LGG']}, GBM={prediction_result['probabilities']['GBM']}")
 
-
+    logger.info("Pipleine completed successfully")
+    
 if __name__ == "__main__":
     main()

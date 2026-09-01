@@ -5,7 +5,7 @@ from tqdm import tqdm
 import logging
 
 logger = logging.getLogger(__name__)
-class Genetic_selector:
+class GeneticSelector:
     def __init__(self, x: np.ndarray, y: np.ndarray, feature_names: list, config: dict):
         self.x = x
         self.y = y
