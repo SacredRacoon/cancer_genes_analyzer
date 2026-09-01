@@ -49,7 +49,7 @@ def main(config_path: str = "config.yaml"):
     prediction_result = evaluator.predict_patient(
         patient_data=test_patient,
         model=evel_results['model'],
-        selected_features=best_features
+        selected_features=best_features,
         feature_names=feature_names
     )
 
@@ -57,6 +57,6 @@ def main(config_path: str = "config.yaml"):
     logger.info(f"Probabilities LGG={prediction_result['probabilities']['LGG']}, GBM={prediction_result['probabilities']['GBM']}")
 
     logger.info("Pipleine completed successfully")
-    
+
 if __name__ == "__main__":
     main()

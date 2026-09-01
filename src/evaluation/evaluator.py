@@ -54,16 +54,16 @@ class ModelEvaluator:
             'y_pred': y_pred
         }
 
-    def predict_patient(self, patient_data: dict, model, selected_deatures: list, feature_names: list) -> dict:
-        x_new = np.zeros((1, len(selected_deatures)))
-        for i, gene in enumerate(selected_deatures):
+    def predict_patient(self, patient_data: dict, model, selected_features: list, feature_names: list) -> dict:
+        x_new = np.zeros((1, len(selected_features)))
+        for i, gene in enumerate(selected_features):
             if gene in patient_data:
                 val = str(patient_data[gene]).upper()
                 x_new[0,i] = 1 if val == 'MUTATED' else 0
             elif gene in ['age_years', 'sex']:
                 x_new[0,i] = float(patient_data.get(gene, 0))
 
-        proba = model.predict_probA(x_new)[0]
+        proba = model.predict_proba(x_new)[0]
         prediction = 'GBM' if proba[1] > 0.5 else 'LGG'
 
         return {

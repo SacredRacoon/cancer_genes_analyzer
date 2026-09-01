@@ -23,13 +23,14 @@ class ModelFactory:
         if model_type not in self.model_map:
             available = ', '.join(self.model_map.keys())
             logger.error(f"Unsupported model {model_type}, available {available}")
+            raise ValueError(f"Unsupported model type: '{model_type}'. Available: {available}")
 
         model_class = self.model_map[model_type]
         params = self._prepare_params(model_type, model_config)
         model = model_class(**params)
 
         logger.info(f"creating model {model_type} with params {params}")
-        return model_class(**params)
+        return model
 
     def _prepare_params(self,model_type: str,model_config: dict) -> dict:
         params = {'random_state': model_config.get('random_state', 42)}

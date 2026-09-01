@@ -123,7 +123,7 @@ class GeneticSelector:
 
             if verbose:
                 selected_genes = np.where(population[best_index] == 1)[0]
-                gene_names = [self.feature_name[i] for i in selected_genes]
+                gene_names = [self.feature_names[i] for i in selected_genes]
                 genes_short = ', '.join(gene_names[:4]) + (f" +{len(gene_names)-4}" if len(gene_names) > 4 else '')
                 stag_text = f" [STAG {stagnation_counter}/{self.early_stopping_rounds}]" if stagnation_counter > 0 else ""
                 iterator.set_description(
@@ -145,7 +145,7 @@ class GeneticSelector:
                 child1, child2 = self._crossover(parent1, parent2)
                 new_population.append(self._mutation(child1))
                 if len(new_population) < self.population_size:
-                    new_population.append(child2._mutation(child2))
+                    new_population.append(self._mutation(child2))
 
             population = np.array(new_population[:self.population_size])
 
@@ -154,7 +154,7 @@ class GeneticSelector:
 
         self.best_chromosome = population[best_final_index]
         self.best_fitness = final_fitness[best_final_index]
-        self.best_features = [self.feature_name[i] for i in np.where(self.best_chromosome == 1)[0]]
+        self.best_features = [self.feature_names[i] for i in np.where(self.best_chromosome == 1)[0]]
 
         logger.info(f"GA finished. Best fitness {self.best_fitness:.4f}, selected features {len(self.best_features)}")
         return self.best_chromosome, self.best_fitness, self.best_features

@@ -49,7 +49,7 @@ model:
 
 #Кросс-валидация
 cv:
-  cv: 5
+  n_splits: 5
   scoring: 'f1_macro'
 
 #Правила парсинга
@@ -67,11 +67,12 @@ data_parsing:
     - "ID"
     - "Sample_ID"
     - "Patient_ID"
+
 #Пути
 paths:
   raw_data: "data/raw/TCGA_GBM_LGG_Mutations_all.csv"
   output_dir: "output"
   models_dir: "output/models"
-  reports_dir: "outputs/reports"
+  reports_dir: "output/reports"
   plots_dir: "output/plots"
   log_file: "output/logs/app.log"
