@@ -8,3 +8,4 @@ output/
 output/confusion_matrix.png
 output/feature_importance.png
 output/fitness_history.png
+.vscode/
