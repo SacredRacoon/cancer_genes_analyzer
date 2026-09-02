@@ -37,19 +37,12 @@ class ModelEvaluator:
         y_pred = model.predict(x_test)
         y_proba = model.predict_proba(x_test)[:,1] if len(np.unique(y)) > 1 else None
 
-<<<<<<< HEAD
         target_names = [f'Cancer_{c}' for c in sorted(np.unique(y))]
         logger.info(f"Classification \n{classification_report(y_test, y_pred, target_names=target_names)}")
 
         if y_proba is not None and len(np.unique(y)) == 2:
             auc = roc_auc_score(y_test, y_proba) if y_proba is not None else 0.0
             logger.info(f"ROC AUC {auc:.4f}")
-=======
-        logger.info(f"Classification \n{classification_report(y_test, y_pred, target_names=['LGG','GBM'])}")
-
-        auc = roc_auc_score(y_test, y_proba) if y_proba is not None else 0.0
-        logger.info(f"ROC AUC {auc:.4f}")
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
 
         importance_df = pd.DataFrame({
             'Feature': selected_names,
@@ -65,7 +58,6 @@ class ModelEvaluator:
             'y_pred': y_pred
         }
 
-<<<<<<< HEAD
     def analyze_genes_per_cancer_type(self, X:np.ndarray, y: np.ndarray,
                                       feature_names: list, selcted_indices: list) -> dict:
         logger.info("Analyzing per cancer type gene")
@@ -131,21 +123,3 @@ class ModelEvaluator:
                 'prediction': prediction,
                 'probabilities': {'Cancer_0': round(proba[0], 4), 'Cancer_1': round(proba[1],4)}
             }
-=======
-    def predict_patient(self, patient_data: dict, model, selected_features: list, feature_names: list) -> dict:
-        x_new = np.zeros((1, len(selected_features)))
-        for i, gene in enumerate(selected_features):
-            if gene in patient_data:
-                val = str(patient_data[gene]).upper()
-                x_new[0,i] = 1 if val == 'MUTATED' else 0
-            elif gene in ['age_years', 'sex']:
-                x_new[0,i] = float(patient_data.get(gene, 0))
-
-        proba = model.predict_proba(x_new)[0]
-        prediction = 'GBM' if proba[1] > 0.5 else 'LGG'
-
-        return {
-            'prediction': prediction,
-            'probabilities': {'LGG': round(proba[0], 4), 'GBM': round(proba[1],4)}
-        }
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0

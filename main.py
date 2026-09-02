@@ -21,24 +21,14 @@ def main(config_path: str = "config.yaml"):
 
     logger.info("Loading and preprocesssing data")
     preprocessor = DataPreprocessor(config.config)
-<<<<<<< HEAD
     X, y, feature_names, df = preprocessor.load_and_process(str(paths.raw_data))
 
     if X.size == 0:
-=======
-    x, y, feature_names, df = preprocessor.load_and_process(str(paths.raw_data))
-
-    if x.size == 0:
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
         logger.error("Data loading failed")
         return
 
     logger.info("Init genetic selector")
-<<<<<<< HEAD
     ga = GeneticSelector(x=X, y=y, feature_names=feature_names, config=config.config)
-=======
-    ga = GeneticSelector(x=x, y=y, feature_names=feature_names, config=config.config)
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
     best_chromosome, best_fitness, best_features = ga.run(verbose=True)
 
     logger.info("Plotting GA evolution")
@@ -49,16 +39,11 @@ def main(config_path: str = "config.yaml"):
     evaluator = ModelEvaluator(config.config, paths)
     selected_indices = np.where(best_chromosome == 1)[0]
 
-<<<<<<< HEAD
     evel_results = evaluator.evaluate_and_save(X, y, selected_indices, feature_names)
-=======
-    evel_results = evaluator.evaluate_and_save(x, y, selected_indices, feature_names)
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
 
     visualizer.plot_feature_importance(evel_results['importance_df'])
     visualizer.plot_confusion_matrix(evel_results['y_test'], evel_results['y_pred'])
 
-<<<<<<< HEAD
     logger.info('ANALYZING GENES PER CANCER TYPE')
 
     cancer_gene_analysis = evaluator.analyze_genes_per_cancer_type(
@@ -70,8 +55,6 @@ def main(config_path: str = "config.yaml"):
         top_3 = importance_df.head(3)['Gene'].tolist()
         logger.info(f"Cancer Type {cancer_type} {', '.join(top_3)}")
 
-=======
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
     logger.info("Running prediction for test patient")
     test_patient = config.get_test_patient()
     prediction_result = evaluator.predict_patient(
@@ -82,11 +65,7 @@ def main(config_path: str = "config.yaml"):
     )
 
     logger.info(f"Test patient predict {prediction_result['prediction']}")
-<<<<<<< HEAD
     logger.info(f"Probabilities {prediction_result['probabilities']}")
-=======
-    logger.info(f"Probabilities LGG={prediction_result['probabilities']['LGG']}, GBM={prediction_result['probabilities']['GBM']}")
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
 
     logger.info("Pipleine completed successfully")
 

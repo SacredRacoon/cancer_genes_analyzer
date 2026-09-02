@@ -29,11 +29,7 @@ class ModelFactory:
         params = self._prepare_params(model_type, model_config)
         model = model_class(**params)
 
-<<<<<<< HEAD
         #logger.info(f"creating model {model_type} with params {params}")
-=======
-        logger.info(f"creating model {model_type} with params {params}")
->>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
         return model
 
     def _prepare_params(self,model_type: str,model_config: dict) -> dict:
