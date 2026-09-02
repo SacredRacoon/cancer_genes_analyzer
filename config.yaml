@@ -7,12 +7,20 @@ ga:
   random_state: 228
   elitism_ratio: 0.03      
   min_features: 3
+<<<<<<< HEAD
   early_stopping_rounds: 5
+=======
+  early_stopping_rounds: 1
+>>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
   stagnation_threshold: 0.0005
 
 #Выбор модели
 model:
+<<<<<<< HEAD
   type: 'xgboost'
+=======
+  type: 'lightgbm'
+>>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
   random_state: 228
   n_jobs: -1
   
@@ -53,6 +61,7 @@ cv:
   scoring: 'f1_macro'
 
 #Правила парсинга
+<<<<<<< HEAD
 data_sources:
   - path: "data/raw/TCGA_GBM_LGG_Mutations_all.csv"
     format: "csv"
@@ -79,6 +88,27 @@ data_sources:
     target_mapping: null 
     mutation_indicator: null  
       - "cancer_type"
+=======
+data_parsing:
+  mutation_indicator: "MUTATED"
+  target_column: "Grade"
+  target_positive_class: "GBM"
+  age_column: "Age_at_diagnosis"
+  sex_column: "Gender"
+  sex_positive_class: "Male"
+  metadata_columns:
+    - "Grade"
+    - "Age_at_diagnosis"
+    - "Gender"
+    - "ID"
+    - "Sample_ID"
+    - "Patient_ID"
+    - "Primary_Diagnosis"
+    - "Project"
+    - "Case_ID"
+    - "Race"
+    
+>>>>>>> 2aa54ff958acfe89cbbfc1c9b43090e57b3817b0
 
 #Пути
 paths:
