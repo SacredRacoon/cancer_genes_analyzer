@@ -1,0 +1,90 @@
+#Параметры генетического алгоритма
+ga:
+  population_size: 150     
+  mutation_rate: 0.3
+  crossover_rate: 0.85
+  generations: 50
+  random_state: 228
+  elitism_ratio: 0.03      
+  min_features: 3
+  early_stopping_rounds: 5
+  stagnation_threshold: 0.0005
+
+#Выбор модели
+model:
+  type: 'xgboost'
+  random_state: 228
+  n_jobs: -1
+  
+  random_forest:
+    n_estimators: 100
+    max_depth: 5
+    min_samples_split: 2
+    min_samples_leaf: 1
+    class_weight: 'balanced'
+    
+  xgboost:
+    n_estimators: 100
+    max_depth: 5
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    use_label_encoder: False
+    eval_metric: 'mlogloss'
+    
+  lightgbm:
+    n_estimators: 100
+    max_depth: 5
+    learning_rate: 0.1
+    num_leaves: 31
+    subsample: 0.8
+    colsample_bytree: 0.8
+    
+  gradient_boosting:
+    n_estimators: 100
+    max_depth: 5
+    learning_rate: 0.1
+    subsample: 0.8
+    min_samples_split: 2
+
+#Кросс-валидация
+cv:
+  n_splits: 5
+  scoring: 'f1_macro'
+
+#Правила парсинга
+data_sources:
+  - path: "data/raw/TCGA_GBM_LGG_Mutations_all.csv"
+    format: "csv"
+    target_column: "Grade"
+    target_mapping:
+      LGG: 0
+      GBM: 1
+    mutation_indicator: "MUTATED"
+    metadata_columns:
+      - "Grade"
+      - "Age_at_diagnosis"
+      - "Gender"
+      - "ID"
+      - "Sample_ID"
+      - "Patient_ID"
+      - "Primary_Diagnosis"
+      - "Project"
+      - "Case_ID"
+      - "Race"
+  
+  - path: "data/raw/cancer_mutation.txt"
+    format: "tsv" 
+    target_column: "cancer_type"
+    target_mapping: null 
+    mutation_indicator: null  
+      - "cancer_type"
+
+#Пути
+paths:
+  raw_data: "data/raw/TCGA_GBM_LGG_Mutations_all.csv"
+  output_dir: "output"
+  models_dir: "output/models"
+  reports_dir: "output/reports"
+  plots_dir: "output/plots"
+  log_file: "output/logs/app.log"
