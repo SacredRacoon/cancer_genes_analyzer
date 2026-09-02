@@ -31,6 +31,7 @@ class ResultVisualizer:
         logger.info(f"Evolution plot in {save_path}")
 
     def plot_feature_importance(self, importance_df):
+        print(importance_df)
         save_path = self.paths.plots_dir / "feature_importance.png"
         fig, ax = plt.subplots(figsize=(10,6))
         sns.barplot(x='Importance', y='Feature', data=importance_df, ax=ax, palette='viridis')
@@ -43,7 +44,7 @@ class ResultVisualizer:
     def plot_confusion_matrix(self,y_test, y_pred):
         save_path = self.paths.plots_dir / "confusion_matrix.png"
         cm = confusion_matrix(y_test, y_pred)
-        fig,ax = plt.subplot(figsize=(6,5))
+        fig,ax = plt.subplots(figsize=(6,5))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',xticklabels=['LGG', 'GBM'], yticklabels=['LGG','GBM'])
         ax.set_xlabel('Predicted')
         ax.set_ylabel('Actual')

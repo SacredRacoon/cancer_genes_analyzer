@@ -47,6 +47,8 @@ class ModelEvaluator:
             'Importance': model.feature_importances_
         }).sort_values(by='Importance', ascending=False)
 
+        logger.info("Feature Importance calculated:\n" + importance_df.to_string(index=False))
+
         return {
             'model': model,
             'importance_df': importance_df,

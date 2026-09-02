@@ -52,7 +52,12 @@ class DataPreprocessor:
 
         age_col = self.cfg.get('age_column', 'Age_at_diagnosis')
         if age_col in df.columns:
-            df['age_years'] = df[age_col].astype(str).str.extract(r"(\d+)").astype(float).fillna(0.0)
+            df['age_years'] = df[age_col].astype(str).str.extract(r"(\d+)").astype(float).fillna(50.0)
+
+            bins = [0, 40, 60, 120]
+            labels = [0, 1, 2] # 0: <40, 1: 40-60, 2: >60
+            df['age_years'] = pd.cut(df['age_years'], bins=bins, labels=labels, include_lowest=True).astype(int)
+            df['age_years'] = df['age_years'].fillna(1)
 
         sex_col = self.cfg.get('sex_column', 'Gender')
         sex_pos = str(self.cfg.get('sex_positive_class', 'Male')).upper()

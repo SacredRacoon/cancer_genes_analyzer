@@ -1,13 +1,13 @@
 #Параметры генетического алгоритма
 ga:
   population_size: 150     
-  mutation_rate: 0.2       
+  mutation_rate: 0.3
   crossover_rate: 0.85
   generations: 50
   random_state: 228
   elitism_ratio: 0.03      
   min_features: 3
-  early_stopping_rounds: 15
+  early_stopping_rounds: 1
   stagnation_threshold: 0.0005
 
 #Выбор модели
@@ -67,6 +67,11 @@ data_parsing:
     - "ID"
     - "Sample_ID"
     - "Patient_ID"
+    - "Primary_Diagnosis"
+    - "Project"
+    - "Case_ID"
+    - "Race"
+    
 
 #Пути
 paths:
