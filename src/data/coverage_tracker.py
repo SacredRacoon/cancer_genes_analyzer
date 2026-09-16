@@ -11,11 +11,16 @@ class CoverageTracker:
     def record_gene_status(self, gene_name: str, is_tested: bool, is_mutated: bool):
         if gene_name not in self.gene_stats:
             self.gene_stats[gene_name] = {'tested': 0, 'mutated': 0}
-
         if is_tested:
             self.gene_stats[gene_name]['tested'] += 1
             if is_mutated:
                 self.gene_stats[gene_name]['mutated'] +=1
+
+    def add_bulk_stats(self, gene_name: str, tested_count: int, mutated_count: int):
+        if gene_name not in self.gene_stats:
+            self.gene_stats[gene_name] = {'tested': 0, 'mutated': 0}
+        self.gene_stats[gene_name]['tested'] += int(tested_count)
+        self.gene_stats[gene_name]['mutated'] += int(mutated_count)
 
     def get_true_frequency(self, gene_name: str) -> float:
         stats = self.gene_stats.get(gene_name, {'tested': 0, 'mutated': 0})

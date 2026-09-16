@@ -89,3 +89,17 @@ paths:
   reports_dir: "output/reports"
   plots_dir: "output/plots"
   log_file: "output/logs/app.log"
+
+data_parsing:
+  min_tested_threshold: 100  # Ген должен быть проверен минимум у 100 пациентов
+
+# Анализ драйверов и пассажиров
+driver_analysis:
+  min_mutation_frequency: 0.015  # Минимальная частота мутаций среди проверенных, чтобы считаться драйвером
+  min_variance: 0.005            # Минимальная дисперсия (чтобы отсечь гены, которые мутируют одинаково редко везде)
+
+# Кластеризация пациентов
+clustering:
+  min_clusters: 2
+  max_clusters: 6
+  random_state: 228

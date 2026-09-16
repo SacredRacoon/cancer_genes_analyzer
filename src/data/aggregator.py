@@ -32,7 +32,8 @@ class DataAggregator:
                 continue
 
             gene_cols = self._extract_gene_columns(df, source)
-            df = self._binarize_and_track_mutations(df, gene_cols, source)
+
+            df = self._binarize_and_track_mutations_vectorized(df, gene_cols, source)
 
             unified_df = df[gene_cols].copy()
             unified_df['target'] = df['target']
@@ -127,25 +128,26 @@ class DataAggregator:
 
         return df
 
-    def _binarize_and_track_mutations(self, df: pd.DataFrame, gene_cols: List[str], source: Dict) -> pd.DataFrame:
+    def _binarize_and_track_mutations_vectorized(self, df: pd.DataFrame, gene_cols: List[str], source: Dict) -> pd.DataFrame:
         indicator = source.get('mutation_indicator')
 
         for col in gene_cols:
             if indicator and df[col].dtype == object:
                 is_mutated = (df[col].astype(str).str.upper() == str(indicator).upper())
-                df[col] = is_mutated.astpe(int)
-                for idx, val in enumerate(is_mutated):
-                    self.coverage_tracker.record_gene_status(col, is_tested=True, is_mutated=bool(val))
+                df[col] = is_mutated.astype(int)
+                
+                tested_count = len(df)
+                mutated_count = int(is_mutated.sum())
+                self.coverage_tracker.add_bulk_stats(col, tested_count, mutated_count)
             else:
                 original_is_na = df[col].isna()
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-                for idx in range(len(df)):
-                    if original_is_na.iloc[idx]:
-                        self.coverage_tracker.record_gene_status(col, is_tested=False, is_mutated=False)
-                    else:
-                        is_mut = (df[col].iloc[idx] == 1)
-                        self.coverage_tracker.record_gene_status(col, is_tested=True, is_mutated=is_mut)
+                tested_count = int((~original_is_na).sum())
+                mutated_count = int((df[col] == 1).sum())
+
+                self.coverage_tracker.add_bulk_stats(col, tested_count, mutated_count)
+
                 df[col] = df[col].where(~original_is_na, np.nan) 
         return df
 
@@ -162,6 +164,7 @@ class DataAggregator:
             missing_genes = set(all_genes) - set(df.columns)
             for gene in missing_genes:
                 df[gene] = np.nan
+                
             df = df[['target','source_id'] + all_genes]
             normalized_dfs.append(df)
 

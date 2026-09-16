@@ -39,11 +39,13 @@ class DriverClassifier:
                 driver_indices.append(i)
                 driver_names.append(gene)
 
-            stats_df = pd.DataFrame(stats).sort_values(by='True_Frequency', ascending=False)
+        stats_df = pd.DataFrame(stats).sort_values(by='True_Frequency', ascending=False)
 
-            logger.info(f"Driver filtering complete {len(driver_names)} drivers selected out of {len(gene_names)} genes")
+        logger.info(f"Driver filtering complete {len(driver_names)} drivers selected out of {len(gene_names)} genes")
+        if len(driver_names) > 0:
             logger.info(f"Top 5 drivers by frequency {stats_df.head(5)['Gene'].tolist()}")
+        else:
+            logger.warning('no driver found')
+        X_drivers = X[:, driver_indices]
 
-            X_drivers = X[:, driver_indices]
-
-            return X_drivers, driver_names, stats_df
+        return X_drivers, driver_names, stats_df
