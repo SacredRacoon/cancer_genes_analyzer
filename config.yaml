@@ -1,12 +1,12 @@
 #Параметры генетического алгоритма
 ga:
-  population_size: 150
-  mutation_rate: 0.3
-  crossover_rate: 0.85
-  generations: 5
+  population_size: 50
+  mutation_rate: 0.15
+  crossover_rate: 0.8
+  generations: 30
   random_state: 228
-  elitism_ratio: 0.03      
-  min_features: 3
+  elitism_ratio: 0.1      
+  min_features: 2
   early_stopping_rounds: 2
   stagnation_threshold: 0.005
 
