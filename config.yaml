@@ -3,12 +3,12 @@ ga:
   population_size: 150
   mutation_rate: 0.3
   crossover_rate: 0.85
-  generations: 50
+  generations: 5
   random_state: 228
   elitism_ratio: 0.03      
   min_features: 3
-  early_stopping_rounds: 1
-  stagnation_threshold: 0.0005
+  early_stopping_rounds: 2
+  stagnation_threshold: 0.005
 
 #Выбор модели
 model:
@@ -38,6 +38,7 @@ model:
     learning_rate: 0.1
     num_leaves: 31
     subsample: 0.8
+    is_unbalance: true  
     colsample_bytree: 0.8
     
   gradient_boosting:

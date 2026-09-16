@@ -34,7 +34,7 @@ class ResultVisualizer:
         print(importance_df)
         save_path = self.paths.plots_dir / "feature_importance.png"
         fig, ax = plt.subplots(figsize=(10,6))
-        sns.barplot(x='Importance', y='Feature', data=importance_df, ax=ax, palette='viridis')
+        sns.barplot(x='Importance', y='Feature', data=importance_df[0:20], ax=ax, palette='viridis')
         ax.set_title('Model Feature Importance')
         plt.tight_layout()
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
