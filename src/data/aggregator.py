@@ -3,12 +3,14 @@ import numpy as np
 import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+from .coverage_tracker import CoverageTracker
 
 logger = logging.getLogger(__name__)
 
 class DataAggregator:
-    def __init__(self, data_sources: List[Dict]):
+    def __init__(self, data_sources: List[Dict], min_tested_threshold: int = 50):
         self.sources = data_sources
+        self.coverage_tracker = CoverageTracker(min_tested_threshold=min_tested_threshold)
         logger.info(f"DataAggregator initialized with {len(self.sources)}")
 
     def load_all(self) -> Tuple[np.ndarray, np.ndarray, List[str], pd.DataFrame]:
@@ -30,7 +32,7 @@ class DataAggregator:
                 continue
 
             gene_cols = self._extract_gene_columns(df, source)
-            df = self._binarize_mutations(df, gene_cols, source)
+            df = self._binarize_and_track_mutations(df, gene_cols, source)
 
             unified_df = df[gene_cols].copy()
             unified_df['target'] = df['target']
@@ -46,19 +48,24 @@ class DataAggregator:
 
         merged_df = self._merge_datasets(all_dfs, all_gene_sets)
 
-        all_cols = merged_df.columns.tolist()
-        gene_cols = [
-            col for col in all_cols
-            if col.lower() not in ['target','source_id']]
-        gene_cols = sorted(list(set(gene_cols)))
+        high_conf_genes = self.coverage_tracker.get_high_confidence_genes()
+
+        final_cols = ['target', 'source_id'] + sorted(high_conf_genes)
+        final_cols = [c for c in final_cols if c in merged_df.columns]
+
+        merged_df = merged_df[final_cols]
+        gene_cols = sorted(high_conf_genes)
 
         x = merged_df[gene_cols].values
 
         y_data = merged_df['target']
         if isinstance(y_data, pd.DataFrame):
-            logger.warning("Duplicate 'target' columns detected! Taking the first one.")
             y_data = y_data.iloc[:, 0]
         y = y_data.astype(int).values.ravel()
+
+        if x.shape[0] != y.shape[0]:
+            raise ValueError(f"Crititcal mismatch x rows {x.shape[0]}, y rows {y.shape[0]}")
+        
         logger.info(f"Aggregation complete {len(gene_cols)} genes, {len(merged_df)} samples")
         logger.info(f"Final dataset shape X={x.shape}, y={y.shape}")
         logger.info(f"Unique cancer types in y {np.unique(y)}")
@@ -120,16 +127,26 @@ class DataAggregator:
 
         return df
 
-    def _binarize_mutations(self, df: pd.DataFrame, gene_cols: List[str], source: Dict) -> pd.DataFrame:
+    def _binarize_and_track_mutations(self, df: pd.DataFrame, gene_cols: List[str], source: Dict) -> pd.DataFrame:
         indicator = source.get('mutation_indicator')
 
         for col in gene_cols:
             if indicator and df[col].dtype == object:
-                df[col] = (df[col].astype(str).str.upper() == str(indicator).upper()).astype(int)
+                is_mutated = (df[col].astype(str).str.upper() == str(indicator).upper())
+                df[col] = is_mutated.astpe(int)
+                for idx, val in enumerate(is_mutated):
+                    self.coverage_tracker.record_gene_status(col, is_tested=True, is_mutated=bool(val))
             else:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
-                df[col] = (df[col] == 1).astype(int)
+                original_is_na = df[col].isna()
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
+                for idx in range(len(df)):
+                    if original_is_na.iloc[idx]:
+                        self.coverage_tracker.record_gene_status(col, is_tested=False, is_mutated=False)
+                    else:
+                        is_mut = (df[col].iloc[idx] == 1)
+                        self.coverage_tracker.record_gene_status(col, is_tested=True, is_mutated=is_mut)
+                df[col] = df[col].where(~original_is_na, np.nan) 
         return df
 
     def _merge_datasets(self, dfs: List[pd.DataFrame], gene_sets: List[set]) -> pd.DataFrame:
@@ -144,7 +161,7 @@ class DataAggregator:
         for i, df in enumerate(dfs):
             missing_genes = set(all_genes) - set(df.columns)
             for gene in missing_genes:
-                df[gene] = 0
+                df[gene] = np.nan
             df = df[['target','source_id'] + all_genes]
             normalized_dfs.append(df)
 

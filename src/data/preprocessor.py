@@ -9,10 +9,16 @@ logger = logging.getLogger(__name__)
 class DataPreprocessor:
     def __init__(self, config: dict):
         self.config = config
-        self.aggregator = DataAggregator(config.get('data_sources', []))
-        logger.info("Data preproccesor ready")
+        data_cfg = config.get('data_parsing', {})
+        min_tested = data_cfg.get('min_tested_threshold',50)
+        self.aggregator = DataAggregator(
+            data_sources=config.get('data_sources', []),
+            min_tested_threshold=min_tested
+            )
 
-    def load_and_process(self, filepath: str) -> tuple:
+        logger.info("Data preproccesor init")
+
+    def load_and_process(self) -> Tuple[np.ndarray, np.ndarray, List[str], pd.DataFrame]:
         logger.info("Starting data aggregation and preproccessing")
 
         X, y, gene_cols, merged_df = self.aggregator.load_all()

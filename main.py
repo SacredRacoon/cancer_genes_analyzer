@@ -1,73 +1,54 @@
 import warnings
 import logging
 import numpy as np
+import pandas as pd
+
 warnings.filterwarnings("ignore")
 
 from src.utils.logger import setup_logger
 from src.utils.paths import PathManager
 from src.utils.config_loader import Config
 from src.data.preprocessor import DataPreprocessor
-from src.genetic.selector import GeneticSelector
-from src.evaluation.evaluator import ModelEvaluator
-from src.evaluation.visualizer import ResultVisualizer
+from src.analysis.driver_classifier import DriverClassifier
+from src.analysis.clusterer import PatientClusterer
 
 def main(config_path: str = "config.yaml"):
     config = Config(config_path)
     paths = PathManager(config.config)
     paths.ensure_dirs()
 
-    logger = setup_logger(name="GA_Glioma", log_file=str(paths.log_file), level=logging.INFO)
-    logger.info("Starting GA glioma analysis pipeline")
+    logger = setup_logger(name="CancerAnalyzer", log_file=str(paths.log_file), level=logging.INFO)
+    logger.info("Starting pan-cancer analysis pipeline")
 
-    logger.info("Loading and preprocesssing data")
+    logger.info("Stage 1 Data aggregation, normalization")
     preprocessor = DataPreprocessor(config.config)
-    X, y, feature_names, df = preprocessor.load_and_process(str(paths.raw_data))
+    X_raw, y, gene_names, merged_df = preprocessor.load_and_process()
 
-    if X.size == 0:
-        logger.error("Data loading failed")
+    if X_raw.size == 0:
+        logger.error("Pipeline halted, no data loaded")
         return
 
-    logger.info("Init genetic selector")
-    ga = GeneticSelector(x=X, y=y, feature_names=feature_names, config=config.config)
-    best_chromosome, best_fitness, best_features = ga.run(verbose=True)
+    logger.info("Stage 2 driver vs passenger classification")
+    driver_classifier = DriverClassifier(config.config)
+    X_drivers, driver_names, driver_stats = driver_classifier.filter_drivers(X_raw, gene_names)
 
-    logger.info("Plotting GA evolution")
-    visualizer = ResultVisualizer(paths)
-    visualizer.plot_evolution(ga.history)
+    if X_drivers.shape[1] < 5:
+        logger.error("Pipeline halted too few drivers after filtering")
+        return
 
-    logger.info("Evaluating and saving final model")
-    evaluator = ModelEvaluator(config.config, paths)
-    selected_indices = np.where(best_chromosome == 1)[0]
+    stats_path = paths.reports_dir / "driver_statistics.csv"
+    driver_stats.to_csv(stats_path, index=False)
+    logger.info(f"Driver statistics saved to {stats_path}")
 
-    evel_results = evaluator.evaluate_and_save(X, y, selected_indices, feature_names)
+    logger.info("Stage 3 unsupervised patient clustering")
+    clusterer = PatientClusterer(config.config)
+    cluster_labels, optimal_k, silhouette = clusterer.find_optimal_clusters(X_drivers)
 
-    visualizer.plot_feature_importance(evel_results['importance_df'])
-    visualizer.plot_confusion_matrix(evel_results['y_test'], evel_results['y_pred'])
+    merged_df['cluster_label'] = cluster_labels
 
-    logger.info('ANALYZING GENES PER CANCER TYPE')
-
-    cancer_gene_analysis = evaluator.analyze_genes_per_cancer_type(
-        X, y, feature_names, selected_indices
-    )   
-
-    logger.info("FINAL REPORT: Genes per cancer type")
-    for cancer_type, importance_df in cancer_gene_analysis.items():
-        top_3 = importance_df.head(3)['Gene'].tolist()
-        logger.info(f"Cancer Type {cancer_type} {', '.join(top_3)}")
-
-    logger.info("Running prediction for test patient")
-    test_patient = config.get_test_patient()
-    prediction_result = evaluator.predict_patient(
-        patient_data=test_patient,
-        model=evel_results['model'],
-        selected_features=best_features,
-        feature_names=feature_names
-    )
-
-    logger.info(f"Test patient predict {prediction_result['prediction']}")
-    logger.info(f"Probabilities {prediction_result['probabilities']}")
-
-    logger.info("Pipleine completed successfully")
+    cluster_report_path = paths.reports_dir / "cluster_assignments.csv"
+    merged_df[['target','source_id', 'cluster_label']].to_csv(cluster_report_path, index=False)
+    logger.info(f"Cluster assignments saved to {cluster_report_path}")
 
 if __name__ == "__main__":
     main()
