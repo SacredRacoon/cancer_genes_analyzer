@@ -15,7 +15,10 @@ from src.analysis.clusterer import PatientClusterer
 from src.analysis.signature_miner import SignatureMiner
 from src.evolution.selector import SignatureGeneticSelector
 from src.evaluation.reporter import PipelineReporter
+from src.evaluation.evaluator import ModelEvaluator
+from src.evaluation.visualizer import ResultVisualizer
 from src.models.factory import ModelFactory
+
 
 def main(config_path: str = "config.yaml"):
     config = Config(config_path)
@@ -65,25 +68,52 @@ def main(config_path: str = "config.yaml"):
 
     #Временная заглушка (лень дописывать)
     if len(signature_list) > 0:
-        logger.info("Using top drivers as proxy for signatures in this run (full signature matrix mapping in next iteration)")
+        logger.info("Building binary signature matrix for GA")
+        X_binary = np.nan_to_num(X_drivers, nan=0.0).astype(bool)
+        X_sigs = np.zeros((X_binary.shape[0], len(signature_list)), dtype=int)
+
+        for sig_idx, sig_str in enumerate(signature_list):
+            genes_in_sig = [g.strip() for g in sig_str.split('+')]
+            gene_indices = [driver_names.index(g) for g in genes_in_sig if g in driver_names]
+
+            if len(gene_indices) == len(genes_in_sig):
+                X_sigs[:, sig_idx] = np.all(X_binary[:, gene_indices], axis=1).astype(int)
+        X_ga = X_sigs
+        ga_feature_names = signature_list
+        logger.info(f"Successfully mapped {len(signature_list)}")
+    else:
+        logger.warning("No signatures found, back to top 30 drivers")
         X_ga = X_drivers[:, :30]
         ga_feature_names = driver_names[:30]
-    else:
-        X_ga = X_drivers
-        ga_feature_names = driver_names
 
-    # Этап 5: ГА
-    logger.info("Stage 5: Co-evolutionary Genetic Algorithm")
+    logger.info("Stage 5 Coevolutionary GA")
     ga = SignatureGeneticSelector(config.config, X_ga, y, ga_feature_names)
     best_chromosome, best_fitness, best_features = ga.run(verbose=True)
 
-    # Этап 6: Финальная оценка и отчет
-    logger.info("Stage 6: Final evaluation and reporting")
-    # Здесь обучаем финальную модель на best_features и вызываем PipelineReporter
-    # (Код обучения аналогичен твоему старому evaluator.py, но на новых признаках)
-    
-    logger.info("="*60)
-    logger.info("PIPELINE COMPLETED SUCCESSFULLY")
-    logger.info("="*60)   
+
+    logger.info("Stage 6 reporting")
+    selected_indices = np.where(best_chromosome == 1)[0]
+
+    evaluator = ModelEvaluator(config.config, paths)
+    eval_results = evaluator.evaluate_and_save(X_ga, y, selected_indices, ga_feature_names)
+
+    visualizer = ResultVisualizer(paths)
+    visualizer.plot_evolution(ga.history)
+    visualizer.plot_feature_importance(eval_results['importance_df'])
+
+    cluster_names = [f"Cluster_{i}" for i in sorted(np.unique(y))]
+    visualizer.plot_confusion_matrix(eval_results['y_test'],eval_results['y_pred'])
+
+    reporter = PipelineReporter(paths)
+    reporter.generate_final_report(
+        y_test=eval_results['y_test'],
+        y_pred=eval_results['y_pred'],
+        y_proba=eval_results['y_proba'],
+        cluster_names=cluster_names,
+        best_signatures=best_features,
+        signature_importance=eval_results['importance_df']
+    )   
+
+
 if __name__ == "__main__":
     main()

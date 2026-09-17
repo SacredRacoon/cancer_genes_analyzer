@@ -9,7 +9,7 @@ class RandomStateManager:
     def __init__(self, seed: int = 42):
         self.seed = seed
         self._apply_seed()
-        logger.info(f"Random state mangafer init, seed {seed}")
+        logger.info(f"Random state mangager init, seed {seed}")
 
     def _apply_seed(self):
         np.random.seed(self.seed)

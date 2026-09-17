@@ -145,7 +145,7 @@ class SignatureGeneticSelector:
 
         self.best_chromosome = population[best_final_index]
         self.best_fitness = final_fitness[best_final_index]
-        self.best_signatures = [self.feature_names[i] for i in np.where(self.best_chromosome == 1)[0]]
+        self.best_signatures = [self.signature_names[i] for i in np.where(self.best_chromosome == 1)[0]]
 
         logger.info(f"GA finished best fitness {self.best_fitness:.4f}, selected signatures {len(self.best_signatures)}")
         return self.best_chromosome, self.best_fitness, self.best_signatures

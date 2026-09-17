@@ -34,7 +34,8 @@ class ResultVisualizer:
         print(importance_df)
         save_path = self.paths.plots_dir / "feature_importance.png"
         fig, ax = plt.subplots(figsize=(10,6))
-        sns.barplot(x='Importance', y='Feature', data=importance_df[0:20], ax=ax, palette='viridis')
+        top_20 = importance_df.head(20)
+        sns.barplot(x='Importance', y='Feature', data=top_20, ax=ax, palette='viridis')
         ax.set_title('Model Feature Importance')
         plt.tight_layout()
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
@@ -44,12 +45,15 @@ class ResultVisualizer:
     def plot_confusion_matrix(self,y_test, y_pred):
         save_path = self.paths.plots_dir / "confusion_matrix.png"
         cm = confusion_matrix(y_test, y_pred)
-        fig,ax = plt.subplots(figsize=(6,5))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',xticklabels=['LGG', 'GBM'], yticklabels=['LGG','GBM'])
+        classes = sorted(np.unique(y_test))
+        class_labels = [f'Cluster_{int(c)}' for c in classes]
+        
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels, ax=ax)
         ax.set_xlabel('Predicted')
         ax.set_ylabel('Actual')
-        ax.set_title('Confusion matrix')
+        ax.set_title('Confusion Matrix')
         plt.tight_layout()
-        plt.savefig(save_path, dpi=150, bbox_inches = 'tight')
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
         plt.close()
         logger.info(f"Confusion matrix saved to {save_path}")

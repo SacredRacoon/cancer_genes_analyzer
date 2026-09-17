@@ -24,10 +24,10 @@ class PipelineReporter:
 
         rules = []
         for _, row in signature_importance.head(5).iterrows():
-            rules.apped({
+            rules.append({
                 'Signature': row['Signature'],
                 'Importance': round(row['Importance'], 4),
-                'Interpretation': f"Pressence of this combination specific for cluster patterns"
+                'Interpretation': f"Presence of this combination specific for cluster patterns"
             })
 
         final_report ={

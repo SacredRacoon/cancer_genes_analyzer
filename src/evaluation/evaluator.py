@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, roc_auc_score
-from ..models.classifiers import ModelFactory
+from ..models.factory import ModelFactory
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,8 @@ class ModelEvaluator:
             'model': model,
             'importance_df': importance_df,
             'y_test': y_test,
-            'y_pred': y_pred
+            'y_pred': y_pred,
+            'y_proba': y_proba
         }
 
     def analyze_genes_per_cancer_type(self, X:np.ndarray, y: np.ndarray,
