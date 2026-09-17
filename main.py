@@ -94,8 +94,9 @@ def main(config_path: str = "config.yaml"):
     logger.info("Stage 6 reporting")
     selected_indices = np.where(best_chromosome == 1)[0]
 
+    y_for_eval = cluster_labels 
     evaluator = ModelEvaluator(config.config, paths)
-    eval_results = evaluator.evaluate_and_save(X_ga, y, selected_indices, ga_feature_names)
+    eval_results = evaluator.evaluate_and_save(X_ga,  y_for_eval, selected_indices, ga_feature_names)
 
     visualizer = ResultVisualizer(paths)
     visualizer.plot_evolution(ga.history)

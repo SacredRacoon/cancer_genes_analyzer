@@ -31,7 +31,7 @@ class SignatureMiner:
             n_other = np.sum(mask_other)
             
             if n_target < self.min_support:
-                logger.warning(f"Cluster {cluster} too small ({n_target}), skipping.")
+                logger.warning(f"Cluster {cluster} too small ({n_target}), skipping")
                 continue
 
             cluster_sigs = []
@@ -44,7 +44,10 @@ class SignatureMiner:
                     continue
 
                 candidate_names = [driver_names[i] for i in candidate_indices]
+                total_combos = len(list(combinations(range(len(candidate_indices)),size)))
 
+                logger.info(f"Size {size}, testing {total_combos} combinations")
+                
                 for combo in combinations(range(len(candidate_indices)), size):
                     actual_indices = [candidate_indices[i] for i in combo]
                     gene_names = [candidate_names[i] for i in combo]

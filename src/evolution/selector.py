@@ -27,8 +27,9 @@ class SignatureGeneticSelector:
         self.model_factory = ModelFactory()
         self.model_config = config.get('model', {})
         self.cv_params = {
-            'cv': 3, 'scoring': 'f1_macro'
-        }
+                'cv': 3, 
+                'scoring': 'balanced_accuracy' 
+            }
 
         self.history ={
             "best_fitness": [],
