@@ -20,7 +20,10 @@ class ModelEvaluator:
         x_selected = x[:, selected_indices]
         selected_names = [feature_name[i] for i in selected_indices]
 
-        x_train, x_test, y_train, y_test = train_test_split(x_selected, y, test_size= 0.2, random_state=42)
+
+        x_train, x_test, y_train, y_test = train_test_split(
+            x_selected, y, test_size= 0.2, random_state=42
+            )
 
         model = self.model_factory.create_model(self.config.get('model',{}))
         model.fit(x_train, y_train)
@@ -35,14 +38,34 @@ class ModelEvaluator:
         logger.info(f"Selected features in {feature_path}")
 
         y_pred = model.predict(x_test)
-        y_proba = model.predict_proba(x_test)[:,1] if len(np.unique(y)) > 1 else None
+        y_proba = model.predict_proba(x_test)
 
-        target_names = [f'Cancer_{c}' for c in sorted(np.unique(y))]
-        logger.info(f"Classification \n{classification_report(y_test, y_pred, target_names=target_names)}")
+        unique_test_classes = sorted(np.unique(y_test))
+        target_names = [f'Cluster_{int(c)}' for c in unique_test_classes]
 
-        if y_proba is not None and len(np.unique(y)) == 2:
-            auc = roc_auc_score(y_test, y_proba) if y_proba is not None else 0.0
-            logger.info(f"ROC AUC {auc:.4f}")
+        logger.info(f"Classification report\n{classification_report(y_test, y_pred, labels=unique_test_classes, target_names=target_names, zero_division=0)}")
+
+        auc_score = 0.0
+        if y_proba is not None:
+            try:
+                n_test_classes = len(unique_test_classes)
+                trained_classes = model.classes_
+
+                if n_test_classes == 2:
+                    pos_class = unique_test_classes[1]
+                    pos_idx = np.where(trained_classes == pos_class)[0][0]
+                    auc_score = roc_auc_score(y_test, y_proba[:, pos_idx])
+                else:
+                    auc_score = roc_auc_score(
+                        y_test, y_proba, 
+                        labels=trained_classes,
+                        multi_class='ovr', 
+                        average='macro')
+
+            except Exception as e:
+                logger.warning(f"Cant compute roc auc")
+                auc_score = 0.0
+        logger.info(f"Roc auc {auc_score:.4f}")
 
         importance_df = pd.DataFrame({
             'Feature': selected_names,

@@ -18,7 +18,13 @@ class DriverClassifier:
         driver_indices = []
         driver_names = []
 
+        forbidden_names = {'target', 'source_id', 'cluster_label', 'grade', 'age_years', 'sex'}
+
         for i, gene in enumerate(gene_names):
+            if gene.lower() in forbidden_names:
+                logger.warning(f"Skipping forbidden column {gene}")
+                continue
+            
             gene_col = X[:, i]
 
             true_freq = np.nanmean(gene_col)

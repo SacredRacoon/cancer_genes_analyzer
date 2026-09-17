@@ -100,20 +100,20 @@ driver_analysis:
 
 # Кластеризация пациентов
 clustering:
-  min_clusters: 5
-  max_clusters: 10
+  min_clusters: 2
+  max_clusters: 15              # <-- Увеличили с 10 до 15
   random_state: 228
   max_samples_for_base: 5000
   split_large_clusters: true
-  max_cluster_size_to_split: 8000
-  min_split_clusters: 2
-  max_split_clusters: 4
+  max_cluster_size_to_split: 2000  
+  min_split_clusters: 3            
+  max_split_clusters: 5
 
 
 signature_mining:
-  min_frequency_difference: 0.03
-  min_support_count: 10
-  max_combination_size: 4
+  min_frequency_difference: 0.02   
+  min_support_count: 4            
+  max_combination_size: 4  
 
 global_seed: 228
 

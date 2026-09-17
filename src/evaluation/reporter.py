@@ -25,6 +25,14 @@ def safe_roc_auc(y_test, y_proba) -> float:
             else:
                 return roc_auc_score(y_test, y_proba)
         else:
+            if y_proba.ndim == 1:
+                logger.warning("y_proba is 1d but test multiple classe, cant compute roc auc")
+                return 0.0
+
+            if y_proba.shape[1] != n_classes:
+                logger.warning(f"y_proba shape {y_proba.shape} not match to n_classes {n_classes}")
+                return 0.0
+            
             return roc_auc_score(y_test, y_proba, multi_class='ovr', average='macro')
     except Exception as e:
         logger.warning(f"Could not compute roc auc {e}")
@@ -43,10 +51,14 @@ class PipelineReporter:
 
         auc_score = safe_roc_auc(y_test, y_proba)
 
+        unique_test_classes = sorted(np.unique(y_test))
+        safe_target_names = [f'Cluster_{int(c)}' for c in unique_test_classes]
+
         metrics = {
             'classification_report': classification_report(
                 y_test, y_pred, 
-                target_names=cluster_names, 
+                labels=unique_test_classes,
+                target_names=safe_target_names, 
                 output_dict=True, 
                 zero_division=0 
             ),
