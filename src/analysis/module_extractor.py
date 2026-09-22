@@ -16,8 +16,8 @@ class ModuleExtractor:
         self.random_state = cfg.get('random_state',228)
 
         self.alpha_l1 = cfg.get('alpha_l1', 0.1)
-        self.lamda_anchor = cfg.get('lamds_anchor', 0.5)
-        self.anchor_freq-threshold = cfg.get('anchor_freq_threshold',0.10)
+        self.lamda_anchor = cfg.get('lamda_anchor', 0.5)
+        self.anchor_freq_threshold = cfg.get('anchor_freq_threshold',0.10)
         self.anchor_var_threshold = cfg.get('anchor_var_threshold',0.01)
 
         self.soft_thresholding = cfg.get('soft_thresholding',{
@@ -55,6 +55,30 @@ class ModuleExtractor:
             V_contrastive, M, anchor_weights, anchor_vectors
         )
         logger.info(f"Optimal k {optimal_k}, stability score {stability_scores[optimal_k]:.3f}")
+
+        logger.info(f"Stage 5 final nmf run, k {optimal_k}")
+        W, H = self._weighted_nmf(V_contrastive, M, optimal_k, anchor_weights, anchor_vectors)
+
+        stable_genes = self._select_stable_genes(selection_probs, gene_names, optimal_k)
+        logger.info(f"Stage 6 selected {len(stable_genes)} stable genes")
+
+        module_genes = self._extract_module_genes(H, gene_names, top_n = 8)
+
+        info = {
+            'optimal_k': optimal_k,
+            'stability_scores': stability_scores,
+            'selection_probs': selection_probs,
+            'module_genes': module_genes,
+            'anchor_weights': anchor_weights,
+            'n_iterations': self.stability_n_iterations
+        }
+
+        logger.info("Module extraction complete")
+        for i, genes in enumerate(module_genes):
+            logger.info(f"Module {i}: {', '.join(genes)}")
+
+        return W,H, stable_genes, info
+    
     def _soft_threshold(self, V:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         V_soft = np.full_like(V, self.soft_thresholding['nan'],dtype=float)
         M = np.zeros_like(V, dtype=float)
@@ -69,7 +93,7 @@ class ModuleExtractor:
         M[not_nan_mask] = 1.0
         M[nan_mask] = 0.0
 
-        logger.info(f"Soft thresholdin {not_nan_mask.sum()} tested, {nan_mask.sum()} NaN ({nan_mask.mean()*100:.1f`}%)")
+        logger.info(f"Soft thresholding {not_nan_mask.sum()} tested, {nan_mask.sum()} NaN ({nan_mask.mean()*100:.1f}%)")
 
         return V_soft, M
 
@@ -104,7 +128,7 @@ class ModuleExtractor:
             var_factor = min(var / self.anchor_var_threshold, 1.0)
             anchor_weights[i] = min(1.0 + freq_factor + var_factor, 3.0)
 
-        top_anchors = np.argsort(anchor_weights)[-10][::-1]
+        top_anchors = np.argsort(anchor_weights)[-10:][::-1]
         logger.info("Top 10 anchor genes")
         for idx in top_anchors:
             logger.info(f"{gene_names[idx]} weight {anchor_weights[idx]:.2f}")
@@ -174,45 +198,44 @@ class ModuleExtractor:
         linear = delta * (np.maximum(abs_r, delta) - delta)
 
         return np.sum(quadratic + linear)
-    
+
+
+
     def _stability_selection(self, V: np.ndarray, M: np.ndarray, anchor_weights: np.ndarray, anchor_vectors: np.ndarray) -> Tuple[int, np.ndarray, Dict[int, float]]:
-        n_patients, n_genes =  V.shape
+        n_patients, n_genes = V.shape
         n_subsample = int(self.stability_subsample_ratio * n_patients)
 
         max_k = max(self.k_range)
-        selectiont_counts = np.zeros((n_genes, max_k))
-
+        selection_counts = np.zeros((n_genes, max_k))
         stability_scores = {}
 
         for k in self.k_range:
-            logger.info(f"Testing k {k} with {self.stability_n_iterations} subsampling iterations")
-
+            logger.info(f"Testing k={k} with {self.stability_n_iterations} subsampling iterations")
             all_H_runs = []
 
             for iteration in range(self.stability_n_iterations):
-                V_sub, M_sub = self._subsample(self.stability_n_iterations)
-                W_sub, H_sub = self._weighted_nmf(V_sub, M_sub, k, anchor_weights, anchor_vectors, random_state=iteration)
-
+                V_sub, M_sub = self._subsample(V, M, n_subsample, iteration)
+                W_sub, H_sub = self._weighted_nmf(
+                    V_sub, M_sub, k, anchor_weights, anchor_vectors, random_state=iteration
+                )
                 all_H_runs.append(H_sub)
 
                 for module_idx in range(k):
                     top_genes = np.argsort(H_sub[module_idx, :])[-self.stability_top_n_genes:]
-                    selectiont_counts[top_genes, module_idx] += 1
+                    selection_counts[top_genes, module_idx] += 1
 
-                selection_probs_k = selectiont_counts[:, :k] / self.stability_n_iterations
+            stability = self._compute_stability(all_H_runs, k)
+            stability_scores[k] = stability
+            logger.info(f"  -> k={k} finished. Stability score: {stability:.3f}")
 
-                stability = self._compute_stability(all_H_runs, k)
-                stability_scores[k] = stability
+        optimal_k = max(stability_scores, key=stability_scores.get)
 
-                logger.info(f"k {k}, stbility {stability:.3f}")
+        final_selection_probs = selection_counts[:, :optimal_k] / self.stability_n_iterations
 
-            optimal_k = max(stability_scores, key=stability_scores.get)
-            final_selection_probs = selectiont_counts[:,:optimal_k] / self.stability_n_iterations
-
-            return optimal_k, final_selection_probs, stability_scores
+        return optimal_k, final_selection_probs, stability_scores
 
 
-    def _subsample(self, V: np.ndarray, M: np.ndarray, n_samples: int, random_state: int) -> Tuple[np.ndarray. np.ndarray]:
+    def _subsample(self, V: np.ndarray, M: np.ndarray, n_samples: int, random_state: int) -> Tuple[np.ndarray, np.ndarray]:
         rng = np.random.default_rng(random_state)
         indices = rng.choice(V.shape[0], size=n_samples, replace=False)
         return V[indices,:], M[indices, :]
@@ -250,4 +273,23 @@ class ModuleExtractor:
         if norm_a < 1e-10 or norm_b < 1e-10:
             return 0.0
         return np.dot(a,b) / (norm_a * norm_b)
+
+    def _select_stable_genes(self, selection_probs: np.ndarray, gene_names: List[str], l: int) -> List[str]:
+        max_probs = np.max(selection_probs, axis=1)
+
+        stable_mask = max_probs > self.stability_pi_threshold
+        stable_genes = [gene_names[i] for i in range(len(gene_names)) if stable_mask[i]]
+
+        return stable_genes
+
+    def _extract_module_genes(self, H:np.ndarray, gene_names: List[str], top_n: int = 8) -> List[List[str]]:
+        k = H.shape[0]
+        module_genes = []
+
+        for module_idx in range(k):
+            top_indices = np.argsort(H[module_idx, :])[-top_n:][::-1]
+            top_genes = [gene_names[i] for i in top_indices]
+            module_genes.append(top_genes)
+
+        return module_genes
 

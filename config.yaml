@@ -79,6 +79,7 @@ data_sources:
     target_column: "cancer_type"
     target_mapping: null 
     mutation_indicator: null  
+    metadata_columns:          
       - "cancer_type"
 
 #Пути
@@ -91,12 +92,12 @@ paths:
   log_file: "output/logs/app.log"
 
 data_parsing:
-  min_tested_threshold: 100  # Ген должен быть проверен минимум у 100 пациентов
+  min_tested_threshold: 100  
 
 # Анализ драйверов и пассажиров
 driver_analysis:
-  min_mutation_frequency: 0.015  # Минимальная частота мутаций среди проверенных, чтобы считаться драйвером
-  min_variance: 0.005            # Минимальная дисперсия (чтобы отсечь гены, которые мутируют одинаково редко везде)
+  min_mutation_frequency: 0.015 
+  min_variance: 0.005           
 
 # Кластеризация пациентов
 clustering:
@@ -116,5 +117,29 @@ signature_mining:
   max_combination_size: 4  
 
 global_seed: 229
+
+nmf:
+  k_range: [4, 10]
+  
+  max_iter: 500
+  tol: 0.0001
+  random_state: 228
+  
+  alpha_l1: 0.1           
+  lambda_anchor: 0.5       
+  anchor_freq_threshold: 0.10  
+  anchor_var_threshold: 0.01   
+  
+  soft_thresholding:
+    mutated: 0.9
+    not_mutated: 0.1
+    nan: 0.5
+  
+  stability_n_iterations: 100     
+  stability_subsample_ratio: 0.8  
+  stability_pi_threshold: 0.7      
+  stability_top_n_genes: 10       
+  
+  huber_delta: 1.0
 
   
