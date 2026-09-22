@@ -3,6 +3,7 @@ import logging
 from typing import Tuple, List, Dict
 from scipy.optimize import linear_sum_assignment
 from sklearn.utils import resample
+from tqdm import tqdm 
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +201,6 @@ class ModuleExtractor:
         return np.sum(quadratic + linear)
 
 
-
     def _stability_selection(self, V: np.ndarray, M: np.ndarray, anchor_weights: np.ndarray, anchor_vectors: np.ndarray) -> Tuple[int, np.ndarray, Dict[int, float]]:
         n_patients, n_genes = V.shape
         n_subsample = int(self.stability_subsample_ratio * n_patients)
@@ -213,7 +213,9 @@ class ModuleExtractor:
             logger.info(f"Testing k={k} with {self.stability_n_iterations} subsampling iterations")
             all_H_runs = []
 
-            for iteration in range(self.stability_n_iterations):
+            pbar = tqdm(range(self.stability_n_iterations), desc=f"  NMF k={k}", leave=False)
+            
+            for iteration in pbar:
                 V_sub, M_sub = self._subsample(V, M, n_subsample, iteration)
                 W_sub, H_sub = self._weighted_nmf(
                     V_sub, M_sub, k, anchor_weights, anchor_vectors, random_state=iteration
@@ -224,12 +226,13 @@ class ModuleExtractor:
                     top_genes = np.argsort(H_sub[module_idx, :])[-self.stability_top_n_genes:]
                     selection_counts[top_genes, module_idx] += 1
 
+                pbar.set_postfix({"runs": iteration + 1})
+
             stability = self._compute_stability(all_H_runs, k)
             stability_scores[k] = stability
             logger.info(f"  -> k={k} finished. Stability score: {stability:.3f}")
 
         optimal_k = max(stability_scores, key=stability_scores.get)
-
         final_selection_probs = selection_counts[:, :optimal_k] / self.stability_n_iterations
 
         return optimal_k, final_selection_probs, stability_scores

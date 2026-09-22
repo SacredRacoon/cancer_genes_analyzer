@@ -1,14 +1,12 @@
 #Параметры генетического алгоритма
 ga:
-  population_size: 75
+  population_size: 50
   mutation_rate: 0.15
   crossover_rate: 0.8
-  generations: 50
+  generations: 30
   random_state: 229
-  elitism_ratio: 0.1      
+  elitism_ratio: 0.1
   min_features: 2
-  early_stopping_rounds: 2
-  stagnation_threshold: 0.005
 
 #Выбор модели
 model:
@@ -57,10 +55,6 @@ cv:
 data_sources:
   - path: "data/raw/TCGA_GBM_LGG_Mutations_all.csv"
     format: "csv"
-    target_column: "Grade"
-    target_mapping:
-      LGG: 0
-      GBM: 1
     mutation_indicator: "MUTATED"
     metadata_columns:
       - "Grade"
@@ -75,16 +69,13 @@ data_sources:
       - "Race"
   
   - path: "data/raw/cancer_mutations.txt"
-    format: "tsv" 
-    target_column: "cancer_type"
-    target_mapping: null 
-    mutation_indicator: null  
-    metadata_columns:          
+    format: "tsv"
+    mutation_indicator: null
+    metadata_columns:
       - "cancer_type"
 
 #Пути
 paths:
-  raw_data: "data/raw/TCGA_GBM_LGG_Mutations_all.csv"
   output_dir: "output"
   models_dir: "output/models"
   reports_dir: "output/reports"
@@ -96,8 +87,10 @@ data_parsing:
 
 # Анализ драйверов и пассажиров
 driver_analysis:
-  min_mutation_frequency: 0.015 
-  min_variance: 0.005           
+  min_mutation_frequency: 0.015
+  min_variance: 0.005
+  fdr_alpha: 0.05
+  use_statistical_test: true       
 
 # Кластеризация пациентов
 clustering:
@@ -119,11 +112,11 @@ signature_mining:
 global_seed: 229
 
 nmf:
-  k_range: [4, 10]
+  k_range: [6, 8]
   
-  max_iter: 500
-  tol: 0.0001
-  random_state: 228
+  max_iter: 200
+  tol: 0.001
+  random_state: 229
   
   alpha_l1: 0.1           
   lambda_anchor: 0.5       
@@ -135,7 +128,7 @@ nmf:
     not_mutated: 0.1
     nan: 0.5
   
-  stability_n_iterations: 100     
+  stability_n_iterations: 20     
   stability_subsample_ratio: 0.8  
   stability_pi_threshold: 0.7      
   stability_top_n_genes: 10       
