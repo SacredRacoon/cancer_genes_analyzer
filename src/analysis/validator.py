@@ -75,6 +75,8 @@ class ModuleValidator:
                     a_corr, b_corr, c_corr, d_corr = a + 0.5, b +0.5, c +0.5, d + 0.5
                     or_corrected = (a_corr * d_corr) / (b_corr * c_corr)
 
+                    or_corrected = min(or_corrected, 100.0)
+                    log2_or = np.log2(or_corrected + 1)  
                     if p_value < 0.05:
                         significant_pairs += 1
 
@@ -84,7 +86,8 @@ class ModuleValidator:
                         'tested_patients': int(np.sum(valid_mask)),
                         'co_occurrence': a,
                         'p_value': round(float(p_value), 4),
-                        'odds_ratio': round(float(or_corrected), 4)
+                        'odds_ratio': round(float(or_corrected), 4),
+                        'log2_odds_ratio': round(float(log2_or), 2)
                     })
                 except Exception:
                     continue

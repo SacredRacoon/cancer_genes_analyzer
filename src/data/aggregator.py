@@ -131,8 +131,9 @@ class DataAggregator:
             all_genes.update(gs)
         all_genes = sorted(list(all_genes))
 
-        logger.info(f"Total unique genes across all sources {len(all_genes)}")
-
+        logger.info(
+            f"Total unique genes across all sources {len(all_genes)}"
+            f"Merge strategy: Outer join. Missing genes for specific sources filled with NaN (untested)")
         normalized_dfs = []
         for df in dfs:
             missing = set(all_genes) - set(df.columns)
@@ -142,5 +143,12 @@ class DataAggregator:
             normalized_dfs.append(df)
 
         merged = pd.concat(normalized_dfs, ignore_index=True)
-        logger.info(f"Merged dataset shape {merged.shape}")
+        logger.info(f"Merged dataset shape {merged.shape} (Source 1 samples padded with NaN for Source 2 genes, and vice versa)")
+        nan_per_sample = merged_df[gene_cols].isna().sum(axis=1)
+        logger.info(f"NaN statistics per sample min{nan_per_sample.min()}, max={nan_per_sample.max()}, mean={nan_per_sample.mean():.1f}")
+        logger.info(f"Samples with >50% NaN {(nan_per_sample > len(gene_cols)*0.5).sum()}")
         return merged
+
+
+
+

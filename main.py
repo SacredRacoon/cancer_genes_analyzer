@@ -18,6 +18,19 @@ from src.evaluation.visualizer import ResultVisualizer
 from src.evaluation.reporter import UnsupervisedReporter
 from src.analysis.validator import ModuleValidator
 
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        return super(NumpyEncoder, self).default(obj)
+    
 def main(config_path: str = "config.yaml"):
     config = Config(config_path)
     paths = PathManager(config.config)
@@ -104,9 +117,9 @@ def main(config_path: str = "config.yaml"):
 
     validation_path = paths.reports_dir / "validation_report.json"
     with open(validation_path, 'w', encoding='utf-8') as f:
-        json.dump(validation_report, f, indent=2, ensure_ascii=False)
+        json.dump(validation_report, f, indent=2, ensure_ascii=False, cls=NumpyEncoder)
+    
     logger.info(f"Validation report saved to {validation_path}")
-
     logger.info("PIPELINE COMPLETED SUCCESSFULLY")
 
 

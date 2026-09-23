@@ -104,8 +104,7 @@ class ModuleExtractor:
         V_centered = V - background
         V_contrastive = np.maximum(V_centered, 0)
         V_contrastive[np.isnan(V)] = self.soft_thresholding['nan']
-        logger.info(f"Contrast substract background median range {np.nanmin(background):.3f}, {np.nanmax(background):.3f}")
-
+        logger.info(f"Contrast subtraction background median is {np.nanmedian(background):.3f} (expected baseline for sparse non-mutated data)")
         return V_contrastive
 
     def _compute_anchor_weights(self, V: np.ndarray, M: np.ndarray, gene_names: List[str]) -> Tuple[np.ndarray, np.ndarray]:

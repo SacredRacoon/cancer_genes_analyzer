@@ -18,7 +18,6 @@ class UnsupervisedReporter:
 
         modules_info = {}
         for i, name in enumerate(module_names):
-            # Статистика активаций
             activations = W[:, i]
             threshold = np.mean(activations) + np.std(activations)
             high_activation = np.sum(activations > threshold)
@@ -57,5 +56,5 @@ class UnsupervisedReporter:
         logger.info(f"Module report saved to {report_path}")
         logger.info("MODULE SUMMARY")
         for name, info in modules_info.items():
-            logger.info(f"  {name} ({info['patients_top10pct_pct']}% active): {', '.join(info['top_genes'][:4])}...")
+            logger.info(f"{name} ({info['patients_top10pct_pct']}% active): {', '.join(info['top_genes'][:4])}...")
         logger.info("="*60)
