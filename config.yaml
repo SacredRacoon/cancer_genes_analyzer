@@ -1,6 +1,6 @@
 #Параметры генетического алгоритма
 ga:
-  population_size: 25
+  population_size: 5
   mutation_rate: 0.15
   crossover_rate: 0.8
   generations: 30
@@ -141,7 +141,7 @@ nmf:
     not_mutated: 0.1
     nan: 0.5
   
-  stability_n_iterations: 25     
+  stability_n_iterations: 5     
   stability_subsample_ratio: 0.8  
   stability_pi_threshold: 0.55      
   stability_top_n_genes: 10       

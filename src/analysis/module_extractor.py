@@ -154,7 +154,7 @@ class ModuleExtractor:
                 module_idx = i % k
                 anchor_vectors[gene_idx, module_idx] = 1.0
 
-            logger.info(f"Init {len(strong_indices)} anchor genes across {k} modules")
+            logger.debug(f"Init {len(strong_indices)} anchor genes across {k} modules")
 
         eps = 1e-10
 

@@ -15,6 +15,7 @@ from src.analysis.module_extractor import ModuleExtractor
 from src.evolution.selector import UnsupervisedModuleSelector
 from src.evaluation.visualizer import ResultVisualizer
 from src.evaluation.reporter import UnsupervisedReporter
+from src.analysis.validator import ModuleValidator
 
 def main(config_path: str = "config.yaml"):
     config = Config(config_path)
@@ -51,6 +52,30 @@ def main(config_path: str = "config.yaml"):
     for i, genes in enumerate(module_genes):
         logger.info(f"  {module_names[i]}: {', '.join(genes)}")
 
+    logger.info("Stage 3.5 Unsupervised module validation")
+    gene_to_idx_map = {g: i for i, g in enumerate(gene_names)}
+    validator = ModuleValidator(
+        V_binary=X,
+        gene_names=gene_names,
+        gene_to_idx=gene_to_idx_map
+    )
+
+    validation_report = {}
+    for i, genes in enumerate(module_genes):
+        module_name = f"Module_{i}"
+        val_result = validator.validate_module(module_name, genes)
+        validation_report[module_name] = val_result
+
+        me = val_result['mutual_exclusivity']
+        logger.info(
+            f"{module_name}: {me['significant_pairs']}/{me['total_pairs_tested']}"
+            f"exclusive gene pairs, mean or {me['mean_odds_ratio']:.2f}"
+        )
+
+        if val_result['pathway_enrichment']:
+            top_pw = val_result['pathway_enrichment'][0]['pathway']
+            logger.info(f"Enriched in {top_pw}")
+
     logger.info("Stage 4 unsupervised GA module selection")
     ga = UnsupervisedModuleSelector(config.config, W, module_names, V_binary=X_drivers, H=H, gene_names=driver_names)
     best_chrom, best_fitness, best_modules = ga.run(verbose=True)
@@ -76,7 +101,14 @@ def main(config_path: str = "config.yaml"):
     reporter = UnsupervisedReporter(paths)
     reporter.generate_module_report(W, H, module_names, module_genes, stable_genes, driver_names)
 
+    import json
+    validation_path = paths.reports_dir / "validation_report.json"
+    with open(validation_path, "w", encoding='utf-8') as f:
+        json.dump(validation_report, f, indent=2, ensure_ascii=False)
+    logger.info(f"Validation report saved to {validation_path}")
+
     logger.info("PIPELINE COMPLETED SUCCESSFULLY")
+
 
 if __name__ == "__main__":
     main()

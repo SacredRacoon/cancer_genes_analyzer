@@ -76,7 +76,7 @@ class UnsupervisedModuleSelector:
             self.weight_variance * variance_score
             - self.weight_redundancy * redundancy_penalty
             + self.weight_mutual_exclusivity * me_score
-            + self.W * ms_score
+            + self.weight_manifold * ms_score
         )
 
         components = {
@@ -98,7 +98,7 @@ class UnsupervisedModuleSelector:
 
         for module_idx in selected_modules:
             gene_weights = self.H[module_idx, :]
-            top_gene_indices_in_H = np.argsort(gene_weights)[-self.top_genes_for_me][::-1]
+            top_gene_indices_in_H = np.argsort(gene_weights)[-self.top_genes_for_me:][::-1]
 
             gene_indices_in_V = []
             for h_idx in top_gene_indices_in_H:
@@ -210,7 +210,7 @@ class UnsupervisedModuleSelector:
             self.history['mean_fitness'].append(fitness.mean())
 
             if all_components and all_components[best_idx]:
-                self.history['variance_score'].append(all_components[best_idx].get('variance', 0))
+                self.history['variance_scores'].append(all_components[best_idx].get('variance', 0))
                 self.history['redundancy_scores'].append(all_components[best_idx].get('redundancy',0))
                 self.history['me_scores'].append(all_components[best_idx].get('mutual_exclusivity', 0))
                 self.history['manifold_scores'].append(all_components[best_idx].get('manifold_separation', 0))
@@ -242,11 +242,11 @@ class UnsupervisedModuleSelector:
 
             population = np.array(new_pop[:self.population_size])
 
-        final_fitness = self._evaluate_population(population)
-        best_idx = np.argmax(final_fitness)
+        final_fitness_values, _ = self._evaluate_population(population)
+        best_idx = np.argmax(final_fitness_values)
 
         self.best_chromosome = population[best_idx]
-        self.best_fitness = final_fitness[best_idx]
+        self.best_fitness = final_fitness_values[best_idx]
         self.best_modules = [self.module_names[i] for i in np.where(self.best_chromosome == 1)[0]]
 
         logger.info(f"GA finished best fitness: {self.best_fitness:.4f}, selected modules {len(self.best_modules)}")
