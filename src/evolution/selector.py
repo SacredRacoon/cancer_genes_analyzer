@@ -110,21 +110,30 @@ class UnsupervisedModuleSelector:
             if len(gene_indices_in_V) < 2:
                 continue
 
-            gene_matrix = self.V_binary[:, gene_indices_in_V].astype(float)
-            co_matrix = gene_matrix.T @ gene_matrix
-            co_matrix_norm = co_matrix / n_patients
+            gene_matrix = self.V_binary[:, gene_indices_in_V]
+            valid_mask = ~np.isnan(gene_matrix).any(axis=1)
 
-            n_genes = len(gene_indices_in_V)
-            if n_genes < 2:
+            if np.sum(valid_mask) < 10:
                 continue
 
-            mask = ~np.eye(n_genes, dtype=bool)
-            mean_co_occurrence = np.mean(co_matrix_norm[mask])
+            valid_gene_matrix = gene_matrix[valid_mask].astype(float)
+            co_matrix = valid_gene_matrix.T @ valid_gene_matrix
 
+            n_valid_patients = np.sum(valid_mask)
+            co_matrix_norm = co_matrix / n_valid_patients
+
+            n_genes = len(gene_indices_in_V)
+            mask = ~np.eye(n_genes, dtype=bool)
+
+            mean_co_occurrence = float(np.nanmean(co_matrix_norm[mask]))
             exclusivity = 1.0 - mean_co_occurrence
+
             scores.append(exclusivity)
 
-        return float(np.mean(scores)) if scores else 0.0
+        if not scores:
+            return 0.0
+        
+        return float(np.mean(scores))
 
     def _compute_manifold_separation(self, W_selected: np.ndarray) -> float:
         n_patients = W_selected.shape[0]

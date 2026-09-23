@@ -2,6 +2,7 @@ import warnings
 import logging
 import numpy as np
 import pandas as pd
+import json
 
 warnings.filterwarnings("ignore")
 
@@ -101,9 +102,8 @@ def main(config_path: str = "config.yaml"):
     reporter = UnsupervisedReporter(paths)
     reporter.generate_module_report(W, H, module_names, module_genes, stable_genes, driver_names)
 
-    import json
     validation_path = paths.reports_dir / "validation_report.json"
-    with open(validation_path, "w", encoding='utf-8') as f:
+    with open(validation_path, 'w', encoding='utf-8') as f:
         json.dump(validation_report, f, indent=2, ensure_ascii=False)
     logger.info(f"Validation report saved to {validation_path}")
 

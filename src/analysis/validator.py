@@ -54,34 +54,43 @@ class ModuleValidator:
                 mut_a = self.V_binary[:, idx_a]
                 mut_b = self.V_binary[:, idx_b]
 
-                a = np.sum((mut_a == 1) & (mut_b == 1))
-                b = np.sum((mut_a == 1) & (mut_b == 0))
-                c = np.sum((mut_a == 0) & (mut_b == 1))
-                d = np.sum((mut_a == 0) & (mut_b == 0))
+                valid_mask = ~np.isnan(mut_a) & ~np.isnan(mut_b)
+
+                if np.sum(valid_mask) < 10:
+                    continue
+
+                v_mut_a = mut_a[valid_mask]
+                v_mut_b = mut_b[valid_mask]
+
+                a = np.sum((v_mut_a == 1) & (v_mut_b == 1))
+                b = np.sum((v_mut_a == 1) & (v_mut_b == 0))
+                c = np.sum((v_mut_a == 0) & (v_mut_b == 1))
+                d = np.sum((v_mut_a == 0) & (v_mut_b == 0))
 
                 contingency_table = [[a,b], [c,d]]
 
                 try:
                     oddsratio, p_value = fisher_exact(contingency_table, alternative='less')
 
-                    if not np.isfinite(oddsratio):
-                        oddsratio = 999.99 if oddsratio == np.inf else 0.0
+                    a_corr, b_corr, c_corr, d_corr = a + 0.5, b +0.5, c +0.5, d + 0.5
+                    or_corrected = (a_corr * d_corr) / (b_corr * c_corr)
 
                     if p_value < 0.05:
                         significant_pairs += 1
 
-                    odds_ratios.append(oddsratio)
+                    odds_ratios.append(or_corrected)
                     details.append({
                         'gene_pair': f"{gene_a} & {gene_b}",
+                        'tested_patients': int(np.sum(valid_mask)),
                         'co_occurrence': a,
                         'p_value': round(float(p_value), 4),
-                        'odds_ratio': round(float(oddsratio), 4)
+                        'odds_ratio': round(float(or_corrected), 4)
                     })
                 except Exception:
                     continue
 
-        finite_ors = [or_val for or_val in odds_ratios if np.isfinite(or_val)]
         mean_or = float(np.mean(odds_ratios)) if odds_ratios else 1.0
+
         return {
             'total_pairs_tested': len(details),
             'significant_pairs': significant_pairs,
@@ -99,7 +108,7 @@ class ModuleValidator:
             enr = gp.enrichr(
                 gene_list=genes,
                 gene_sets='KEGG_2021_Human',
-                organism='Human',
+                organism='human',
                 outdir=None,
                 cutoff=0.05,
                 format='pdf',

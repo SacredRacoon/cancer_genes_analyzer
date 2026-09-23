@@ -20,7 +20,12 @@ class UnsupervisedReporter:
         for i, name in enumerate(module_names):
             # Статистика активаций
             activations = W[:, i]
-            high_activation = np.sum(activations > np.percentile(activations, 90))
+            threshold = np.mean(activations) + np.std(activations)
+            high_activation = np.sum(activations > threshold)
+
+            if threshold < 0.1:
+                threshold = 0.1
+                high_activation = int(np.sum(activations > threshold))
 
             modules_info[name] = {
                 'top_genes': module_genes[i],
@@ -28,6 +33,7 @@ class UnsupervisedReporter:
                 'mean_activation': round(float(np.mean(activations)), 4),
                 'max_activation': round(float(np.max(activations)), 4),
                 'std_activation': round(float(np.std(activations)), 4),
+                'activation_threshold_used': round(float(threshold), 4),
                 'patients_top10pct': int(high_activation),
                 'patients_top10pct_pct': round(high_activation / n_patients * 100, 2)
             }
