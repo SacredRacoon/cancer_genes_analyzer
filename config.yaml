@@ -1,17 +1,30 @@
 #Параметры генетического алгоритма
 ga:
-  population_size: 50
+  population_size: 25
   mutation_rate: 0.15
   crossover_rate: 0.8
   generations: 30
-  random_state: 229
+  random_state: 400
   elitism_ratio: 0.1
   min_features: 2
+
+  use_mutual_exclusivity: true
+  use_manifold_separation: true
+  
+  weight_variance: 1.0
+  weight_redundancy: 0.5
+  weight_mutual_exclusivity: 0.3
+  weight_manifold: 0.4
+  
+  top_genes_for_mutual_exclusivity: 5
+  
+  subsample_for_manifold: 2000
+  n_clusters_manifold: 4
 
 #Выбор модели
 model:
   type: 'lightgbm'
-  random_state: 229
+  random_state: 400
   n_jobs: -1
   
   random_forest:
@@ -96,7 +109,7 @@ driver_analysis:
 clustering:
   min_clusters: 3
   max_clusters: 15             
-  random_state: 229
+  random_state: 300
   max_samples_for_base: 5000
   split_large_clusters: true
   max_cluster_size_to_split: 2000  
@@ -109,14 +122,14 @@ signature_mining:
   min_support_count: 4            
   max_combination_size: 4  
 
-global_seed: 229
+global_seed: 400
 
 nmf:
   k_range: [6, 8]
   
   max_iter: 200
   tol: 0.001
-  random_state: 229
+  random_state: 400
   
   alpha_l1: 0.1           
   lambda_anchor: 0.5       
@@ -128,9 +141,9 @@ nmf:
     not_mutated: 0.1
     nan: 0.5
   
-  stability_n_iterations: 20     
+  stability_n_iterations: 25     
   stability_subsample_ratio: 0.8  
-  stability_pi_threshold: 0.7      
+  stability_pi_threshold: 0.55      
   stability_top_n_genes: 10       
   
   huber_delta: 1.0

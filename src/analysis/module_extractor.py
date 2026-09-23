@@ -103,8 +103,7 @@ class ModuleExtractor:
 
         V_centered = V - background
         V_contrastive = np.maximum(V_centered, 0)
-        V_contrastive[np.isnan(V)] = 0.0
-
+        V_contrastive[np.isnan(V)] = self.soft_thresholding['nan']
         logger.info(f"Contrast substract background median range {np.nanmin(background):.3f}, {np.nanmax(background):.3f}")
 
         return V_contrastive
@@ -149,7 +148,13 @@ class ModuleExtractor:
         if anchor_vectors is None:
             anchor_vectors = np.zeros((n_genes, k), dtype=float)
             strong_anchors = anchor_weights > 2.0
-            anchor_vectors[strong_anchors, 0] = 1.0
+            strong_indices = np.where(strong_anchors)[0]
+
+            for i, gene_idx in enumerate(strong_indices):
+                module_idx = i % k
+                anchor_vectors[gene_idx, module_idx] = 1.0
+
+            logger.info(f"Init {len(strong_indices)} anchor genes across {k} modules")
 
         eps = 1e-10
 
@@ -213,7 +218,7 @@ class ModuleExtractor:
             logger.info(f"Testing k={k} with {self.stability_n_iterations} subsampling iterations")
             all_H_runs = []
 
-            pbar = tqdm(range(self.stability_n_iterations), desc=f"  NMF k={k}", leave=False)
+            pbar = tqdm(range(self.stability_n_iterations), desc=f"  NMF k={k}")
             
             for iteration in pbar:
                 V_sub, M_sub = self._subsample(V, M, n_subsample, iteration)
@@ -283,6 +288,11 @@ class ModuleExtractor:
         stable_mask = max_probs > self.stability_pi_threshold
         stable_genes = [gene_names[i] for i in range(len(gene_names)) if stable_mask[i]]
 
+        if len(stable_genes) < 10:
+            logger.warning(
+                f"Only {len(stable_genes)} genes found with threshold {self.stability_pi_threshold}"
+                f"Consider lowering stability_pi_threshold in config"
+            )
         return stable_genes
 
     def _extract_module_genes(self, H:np.ndarray, gene_names: List[str], top_n: int = 8) -> List[List[str]]:

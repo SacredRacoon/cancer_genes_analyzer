@@ -52,7 +52,7 @@ def main(config_path: str = "config.yaml"):
         logger.info(f"  {module_names[i]}: {', '.join(genes)}")
 
     logger.info("Stage 4 unsupervised GA module selection")
-    ga = UnsupervisedModuleSelector(config.config, W, module_names)
+    ga = UnsupervisedModuleSelector(config.config, W, module_names, V_binary=X_drivers, H=H, gene_names=driver_names)
     best_chrom, best_fitness, best_modules = ga.run(verbose=True)
 
     logger.info("Stage 5 reporting and visualization")
@@ -60,11 +60,19 @@ def main(config_path: str = "config.yaml"):
     visualizer.plot_evolution(ga.history)
 
     importance_df = pd.DataFrame({
-        'Feature': module_names,
-        'Importance': np.var(W, axis=0)
+            'Feature': module_names,
+            'Importance': np.var(W, axis=0)
     }).sort_values(by='Importance', ascending=False)
     visualizer.plot_feature_importance(importance_df)
 
+    if ga.history['me_scores']:
+        logger.info(
+            f"Final fitness components"
+            f"Variance {ga.history['variance_scores'][-1]:.3f}, "
+            f"Redundancy {ga.history['redundancy_scores'][-1]:.3f}, "
+            f"Mutual Exclusivity {ga.history['me_scores'][-1]:.3f}, "
+            f"Manifold Separation {ga.history['manifold_scores'][-1]:.3f}"
+            )
     reporter = UnsupervisedReporter(paths)
     reporter.generate_module_report(W, H, module_names, module_genes, stable_genes, driver_names)
 
