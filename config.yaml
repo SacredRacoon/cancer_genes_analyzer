@@ -141,7 +141,7 @@ nmf:
     not_mutated: 0.1
     nan: 0.5
   
-  stability_n_iterations: 25     
+  stability_n_iterations: 25  
   stability_subsample_ratio: 0.8  
   stability_pi_threshold: 0.55      
   stability_top_n_genes: 10       

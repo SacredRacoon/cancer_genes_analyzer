@@ -72,13 +72,6 @@ class UnsupervisedModuleSelector:
         if self.use_manifold_separation and W_selected.shape[1] >= 2:
             ms_score = self._compute_manifold_separation(W_selected)
 
-        prevalence_penalty = 0.0
-        for module_idx in selected:
-            activation = self.W[:, module_idx]
-            prevalence = np.mean(activation > (np.mean(activation) + np.std(activation)))
-            if prevalence < 0.05: 
-                prevalence_penalty += (0.05 - prevalence) * 10.0 
-
         total = (
             self.weight_variance * variance_score
             - self.weight_redundancy * redundancy_penalty
@@ -190,7 +183,8 @@ class UnsupervisedModuleSelector:
         return np.array(fitness_values), all_components
 
     def _selection(self, population, fitness):
-        idx = self.rng.choice(self.population_size, size=3, replace=False)
+        k = min(3, self.population_size)
+        idx = self.rng.choice(self.population_size, size=k, replace=False)
         return population[idx[np.argmax(fitness[idx])]].copy()
 
     def _crossover(self, p1, p2):

@@ -143,10 +143,11 @@ class DataAggregator:
             normalized_dfs.append(df)
 
         merged = pd.concat(normalized_dfs, ignore_index=True)
-        logger.info(f"Merged dataset shape {merged.shape} (Source 1 samples padded with NaN for Source 2 genes, and vice versa)")
-        nan_per_sample = merged_df[gene_cols].isna().sum(axis=1)
-        logger.info(f"NaN statistics per sample min{nan_per_sample.min()}, max={nan_per_sample.max()}, mean={nan_per_sample.mean():.1f}")
-        logger.info(f"Samples with >50% NaN {(nan_per_sample > len(gene_cols)*0.5).sum()}")
+        logger.info(f"Merged dataset shape: {merged.shape} (Source 1 samples padded with NaN for Source 2 genes, and vice versa)")
+        nan_per_sample = merged[all_genes].isna().sum(axis=1)
+        logger.info(f"NaN statistics per sample: min={nan_per_sample.min()}, max={nan_per_sample.max()}, mean={nan_per_sample.mean():.1f}")
+        logger.info(f"Samples with >50% NaN: {(nan_per_sample > len(all_genes)*0.5).sum()}")
+        
         return merged
 
 
