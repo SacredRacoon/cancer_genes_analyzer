@@ -46,19 +46,34 @@ class UnsupervisedModuleSelector:
         self.gene_names = gene_names
         self.gene_to_idx = {g: i for i, g in enumerate(gene_names)} if gene_names else None
 
+        n_patients = W.shape[0]
+        if n_patients > self.subsample_for_manifold:
+            self.fixed_subsample = self.rng.choice(
+                n_patients, size=self.subsample_for_manifold, replace=False
+            )
+        else:
+            self.fixed_subsample = np.arange(n_patients)
+
         logger.info(f"Unsupervised GA ready pop={self.population_size}, gen={self.generations}, modules={self.n_modules}, ME={self.use_mutual_exclusivity}, MS={self.use_manifold_separation}")
 
     def _fitness(self, chromosome: np.ndarray) -> float:
         selected = np.where(chromosome == 1)[0]
         if len(selected) < self.min_features:
-            return 0.0
+            return 0.0, {
+                'variance': 0.0,
+                'redundancy': 0.0,
+                'mutual_exclusivity': 0.0,
+                'manifold_separation': 0.0,
+                'total': 0.0
+            }
 
         W_selected = self.W[:, selected]
 
-        variance_score = np.sum(np.var(W_selected, axis=0))
+        variance_score = np.mean(np.var(W_selected, axis=0))
 
         if len(selected) > 1:
             corr_matrix = np.corrcoef(W_selected.T)
+            corr_matrix = np.nan_to_num(corr_matrix, nan=0.0)
             mask = ~np.eye(len(selected), dtype=bool)
             redundancy_penalty = np.mean(np.abs(corr_matrix[mask])) * 0.5
         else:
@@ -72,11 +87,16 @@ class UnsupervisedModuleSelector:
         if self.use_manifold_separation and W_selected.shape[1] >= 2:
             ms_score = self._compute_manifold_separation(W_selected)
 
+        n_selected = len(selected)
+        ideal_n_modules = self.n_modules // 2  
+        module_count_penalty = abs(n_selected - ideal_n_modules) / self.n_modules
+
         total = (
             self.weight_variance * variance_score
             - self.weight_redundancy * redundancy_penalty
             + self.weight_mutual_exclusivity * me_score
             + self.weight_manifold * ms_score
+            - 0.3 * module_count_penalty 
         )
 
         components = {
@@ -84,6 +104,7 @@ class UnsupervisedModuleSelector:
             'redundancy': redundancy_penalty,
             'mutual_exclusivity': me_score,
             'manifold_separation': ms_score,
+            'module_count_penalty': module_count_penalty,
             'total': total
         }
 
@@ -117,18 +138,25 @@ class UnsupervisedModuleSelector:
                 continue
 
             valid_gene_matrix = gene_matrix[valid_mask].astype(float)
-            co_matrix = valid_gene_matrix.T @ valid_gene_matrix
-
-            n_valid_patients = np.sum(valid_mask)
-            co_matrix_norm = co_matrix / n_valid_patients
-
+            
             n_genes = len(gene_indices_in_V)
-            mask = ~np.eye(n_genes, dtype=bool)
+            exclusivity_scores = []
 
-            mean_co_occurrence = float(np.nanmean(co_matrix_norm[mask]))
-            exclusivity = 1.0 - mean_co_occurrence
+            for i in range(n_genes):
+                for j in range(i+1, n_genes):
+                    gene_i = valid_gene_matrix[:, i]
+                    gene_j = valid_gene_matrix[:, j]
 
-            scores.append(exclusivity)
+                    both_mutated = np.sum((gene_i == 1) & (gene_j == 1))
+                    only_i = np.sum((gene_i == 1) & (gene_j == 0))
+                    only_j = np.sum((gene_i == 0) & (gene_j == 1))
+
+                    total_mutations = only_i + only_j + both_mutated
+                    if total_mutations > 0:
+                        me_score = (only_i + only_j) / total_mutations
+                        exclusivity_scores.append(me_score)
+            if exclusivity_scores:
+                scores.append(np.mean(exclusivity_scores))
 
         if not scores:
             return 0.0
@@ -136,13 +164,7 @@ class UnsupervisedModuleSelector:
         return float(np.mean(scores))
 
     def _compute_manifold_separation(self, W_selected: np.ndarray) -> float:
-        n_patients = W_selected.shape[0]
-        if n_patients > self.subsample_for_manifold:
-            indices = self.rng.choice(n_patients, size=self.subsample_for_manifold, replace=False)
-            W_sub = W_selected[indices]
-        else:
-            W_sub = W_selected
-
+        W_sub = W_selected[self.fixed_subsample]
         n_clusters = min(self.n_clusters_manifold, W_sub.shape[0] // 2)
         if n_clusters < 2:
             return 0.0

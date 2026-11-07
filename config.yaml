@@ -6,14 +6,14 @@ ga:
   generations: 30
   random_state: 400
   elitism_ratio: 0.1
-  min_features: 2
+  min_features: 3
 
   use_mutual_exclusivity: true
   use_manifold_separation: true
   
-  weight_variance: 1.0
+  weight_variance: 1.5
   weight_redundancy: 0.5
-  weight_mutual_exclusivity: 0.3
+  weight_mutual_exclusivity: 0.5
   weight_manifold: 0.4
   
   top_genes_for_mutual_exclusivity: 5
