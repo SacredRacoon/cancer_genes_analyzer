@@ -175,22 +175,31 @@ class ModuleExtractor:
 
         prev_loss = np.inf
 
+        huber_weights = np.ones_like(V, dtype=float)
+
         for iteration in range(self.max_iter):
             WH = W@H
+            residual = M * (V - WH)
+            huber_weights = self._compute_huber_weights(residual)
+            V_weighted = M * huber_weights * V
+            WH_weighted = M * huber_weights * WH
+
             anchor_diff = H.T - anchor_vectors
             anchor_penalty_pos = np.maximum(anchor_diff, 0) * anchor_mask[:, None]
             anchor_penalty_neg = np.maximum(-anchor_diff, 0) * anchor_mask[:, None]
 
-            numerator_H = W.T @ (M * V) + self.lambda_anchor * anchor_penalty_neg.T
-            denominator_H = W.T @ (M * WH) + self.alpha_l1 + self.lambda_anchor * anchor_penalty_pos.T
-            
+            numerator_H = W.T @ V_weighted + self.lambda_anchor * anchor_penalty_neg.T
+            denominator_H = W.T @ WH_weighted + self.lambda_anchor * anchor_penalty_pos.T
+
             H = H * (numerator_H + eps) / (denominator_H + eps)
-            H = np.maximum(H, 0)
+            adaptive_alpha = self.alpha_l1 * np.mean(H)
+            H = np.maximum(H - adaptive_alpha, 0)
 
             WH = W @ H
-            numerator_W = (M * V) @ H.T
-            denominator_W = (M * WH) @ H.T
-
+            V_weighted = M * huber_weights * V
+            WH_weighted = M * huber_weights * WH
+            numerator_W = V_weighted @ H.T
+            denominator_W = WH_weighted @ H.T
             W = W * (numerator_W + eps) / (denominator_W + eps)
             W = np.maximum(W, 0)
 
@@ -342,3 +351,11 @@ class ModuleExtractor:
 
         return module_genes
 
+    def _compute_huber_weights(self, residual: np.ndarray) -> np.ndarray:
+        delta = self.huber_delta
+        abs_r = np.abs(residual)
+        weights = np.ones_like(residual, dtype=float)
+        mask = abs_r > delta
+        weights[mask] = delta / (abs_r[mask] + 1e-10)
+
+        return weights
