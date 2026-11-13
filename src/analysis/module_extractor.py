@@ -80,144 +80,132 @@ class ModuleExtractor:
 
         return W,H, stable_genes, info
     
-    def _soft_threshold(self, V:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        V_soft = np.full_like(V, self.soft_thresholding['nan'],dtype=float)
-        M = np.zeros_like(V, dtype=float)
+    def _prepare_matrix(self, V: np.ndarray, gene_names: List[str]) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+        X = np.asarray(V, dtype=np.float64)
+        if X.ndim != 2 or X.shape[1] != len(gene_names):
+            raise ValueError(f"X shape {X.shape} not connected with gene_name ({len(gene_names)})")
+        M = (~np.isnan(X)).astype(np.float64)
+        Vb = np.nan_to_num(X, nan = 0.0)
 
-        nan_mask = np.isnan(V)
-        not_nan_mask = ~nan_mask
+        observed = Vb[M == 1.0]
+        if observed.size == 0:
+            raise ValueError("Cant find observed cells")
+        uniq = np.uniq(observed)
+        if not np.app(np.isnan(uniq, [0.0, 1.0])):
+            raise ValueError(f"Waiting binary matrix, founded {uniq[:10]}")
 
-        V_soft[not_nan_mask & (V==1)] = self.soft_thresholding['mutated']
-        V_soft[not_nan_mask & (V==0)] = self.soft_thresholding['not_mutated']
-        V_soft[nan_mask] = self.soft_thresholding['nan']
+        tested = M.sum(axis = 0)
+        mutated = (Vb * M).sum(axis=0)
+        freq = np.divide(mutated, tested, out=np.zeros_like(mutated), where = tested > 0)
+        cov = tested / X.shape[0]
 
-        M[not_nan_mask] = 1.0
-        M[nan_mask] = 0.0
+        logger.info("Matrxi %dx%d, observed %.1f%% cells, mutations in observed %.3f%%",
+        X.shape[0], X.shape[1], 100.0 * M.mean(), 100.0 * mutated.sum() / M.sum()
+        )
+        logger.info("Covered genes (proportions of pations) min=%.3f median=%.3f max=%.3f",
+                    cov.min(), float(np.median(cov)), cov.max()
+        )
+        logger.info("Freq of mutations, median=%.4f max=%.4f (%s)",
+                    float(np.median(freq)), freq.max(), gene_names[int(np.argmax(freq))]
+        )
+        if np.any(tested == 0):
+            logger.warning("%d genes not observed, zero impact in loss", int((tested == 0).sum()))
+        if np.any(freq > 0.5):
+            logger.info("Genes with p>0.5", int((freq > 0.5).sum()))
 
-        logger.info(f"Soft thresholding {not_nan_mask.sum()} tested, {nan_mask.sum()} NaN ({nan_mask.mean()*100:.1f}%)")
+        return Vb, M, {'tested': tested, 'mutated': mutated, 'freq': freq}
+    
+    def _compute_gene_weights(self, gene_stats: Dict[str, np.ndarray], gene_names: List[str]) -> np.ndarray:
+        p = gene_stats['freq']
+        tested = gene_stats['tested']
+        n_genes = len(p)
+        w = np.ones(n_genes, dtype=np.float64)
 
-        return V_soft, M
+        if self.gene_weighting == 'chi2':
+            var = np.maximum(p * (1.0 - p), 1e-6)
+            raw = 1.0 / var
+            med = float(np.median(raw[raw > 0])) if np.any(raw > 0) else 1.0
+            w = np.clip(raw / med, 1.0 / self.max_gene_weight, self.max_gene_weight)
+        elif self.gene_weightin != 'none':
+            raise ValueError(f"gene_weighting {self.gene_weighting} not supported (none, chi2)")
 
-    def _contrastive_substraction(self, V: np.ndarray, M: np.ndarray) -> np.ndarray:
-        n_genes = V.shape[1]
-        background = np.zeros(n_genes, dtype=float)
+        w[tested == 0] = 0.0
 
-        for j in range(n_genes):
-            tested_mask = M[:, j] == 1.0
+        if self.prior_genes:
+            prior_set = set(self.prior_genes)
+            is_prior = np.array([g in prior_set for g in gene_names], dtype=bool)
+            if not is_prior():
+                logger.warning("prior_genes set by (%d), but cant find in data", len(prior_set))
+            w = w * np.where(is_prior, self.prior_boost, 1.0)
+            logger.info("Prior genes %d/%d, boost=%.2f", int(is_prior.sum()), n_genes, self.prior_boost)
 
-            if np.any(tested_mask):
-                background[j] = np.median(V[tested_mask, j])
-            else:
-                background[j] = self.soft_thresholding['nan']
+        if (self.gene_weighting != 'none' or self.prior_genes) and np.allclose(w, w[0]):
+            logger.error("weights of genes degenerated (all %.3f) alg doesnt work", w[0])
 
-        V_centered = V - background[None, :]
+        order = np.lexsort((np.asarray(gene_names), -2))[:10]
+        logger.info("weights of genes min=%.2f median=%.2f max=%.2f, top 10 %s",
+                    w.min(), float(np.median(w)), w.max(), ", ".join(f"{gene_names[i]}={w[i]:.2f}" for i in order)
+                )
+        return w
 
-        V_contrastive = np.maximum(V_centered, 0.0)
-        V_contrastive[M == 0] = self.soft_thresholding['nan']
+    @staticmethod
+    def _normalize(W: np.ndarray, H: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        s = H.sum(axis=1)
+        alive = s > Ellipsis
+        H[alive] /= s[alive, None]
+        W[:, alive] *= s[None, alive]
+        H[~alive] = 0.0
+        W[:, ~alive] = 0.0
+        return W, H
 
-        logger.info(f"Contrast subtraction background median is {np.nanmedian(background):.3f} (expected baseline for sparse non-mutated data)")
-        return V_contrastive
+    def _sparsify(self, H:np.ndarray) -> np.ndarray:
+        if self._sparsity_tau <= 0:
+            return H
+        mx = H.max(axis=1, keepdims=True)
+        return np.where((H >= self.sparsity_tau * mx) & (mx > EPS), H, 0.0)
 
-    def _compute_anchor_weights(self, V: np.ndarray, M: np.ndarray, gene_names: List[str]) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
-        n_genes = V.shape[1]
-        anchor_weights = np.ones(n_genes, dtype=float)
-        anchor_vectors = None
 
-        for i in range(n_genes):
-            gene_col = V[:, i]
-            mask = M[:, i] == 1.0
+    def _weighted_nmf(self, V:np.ndarray, M: np.ndarray, k: int, gene_weight: np.ndarray, random_state: Optional[int] = None, max_iter: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
+        seed = self.random_state if random_state is None else random_state
+        rng = np.random.default_rng(seed)
+        n, p = V.shape
+        iters = self.max_iter if max_iter is None else max_iter
 
-            if mask.sum() == 0:
-                continue
+        Mw = M * gene_weight[None, :]
+        MwV = Mw * V
 
-            freq = np.nanmean(gene_col[mask])
-            var = np.nanvar(gene_col[mask])
+        H = rng.uniform(0.01, 1.0, size=(k,p))
+        H /= H.sum(axis=1, keepdims=True)
+        burden = (V * M).sum(axis=1, keepdims=True)
+        W = np.maximum(burden / k, 1e-6) * rng.uniform(0.5, 1.5, size=(n,k))
 
-            freq_factor = min(freq / self.anchor_freq_threshold, 2.0)
-            var_factor = min(var / self.anchor_var_threshold, 1.0)
-            anchor_weights[i] = min(1.0 + freq_factor + var_factor, 3.0)
-
-        top_n_anchors = min(20, max(10, n_genes // 10))
-        anchor_mask = np.zeros(n_genes, dtype=float)
-        top_indices = np.argsort(anchor_weights)[-top_n_anchors:]
-        anchor_mask[top_indices] = 1.0
-        
-        logger.info(f"Top {top_n_anchors} anchor genes selected")
-        for idx in top_indices[::-1]:
-            logger.info(
-                f"  {gene_names[idx]} weight {anchor_weights[idx]:.2f}"
-            )
-        logger.info(f"Anchor genes selected {int(anchor_mask.sum())}/{n_genes}")
-        return anchor_weights, None, anchor_mask
-
-    def _weighted_nmf(self, V: np.ndarray, M: np.ndarray, k: int, anchor_weights: np.ndarray, anchor_vectors: np.ndarray = None, anchor_mask: np.ndarray = None, random_state: int = None) -> Tuple[np.ndarray, np.ndarray]:
-        if random_state is None:
-            random_state = self.random_state
-
-        rng = np.random.default_rng(random_state)
-        n_patients, n_genes = V.shape
-
-        W = rng.uniform(0.01, 1.0, size=(n_patients, k))
-        H = rng.uniform(0.01, 1.0, size=(k,n_genes))
-
-        if anchor_vectors is None:
-            anchor_vectors = np.zeros((n_genes, k), dtype=float)
-            strong_anchors = anchor_weights > 2.0
-            strong_indices = np.where(strong_anchors)[0]
-
-            for i, gene_idx in enumerate(strong_indices):
-                module_idx = i % k
-                anchor_vectors[gene_idx, module_idx] = 1.0
-
-            logger.debug(f"Init {len(strong_indices)} anchor genes across {k} modules")
-
-        eps = 1e-10
-
-        prev_loss = np.inf
-
-        huber_weights = np.ones_like(V, dtype=float)
-
-        for iteration in range(self.max_iter):
-            WH = W@H
-            residual = M * (V - WH)
-            huber_weights = self._compute_huber_weights(residual)
-            V_weighted = M * huber_weights * V
-            WH_weighted = M * huber_weights * WH
-
-            anchor_diff = H.T - anchor_vectors
-            anchor_penalty_pos = np.maximum(anchor_diff, 0) * anchor_mask[:, None]
-            anchor_penalty_neg = np.maximum(-anchor_diff, 0) * anchor_mask[:, None]
-
-            numerator_H = W.T @ V_weighted + self.lambda_anchor * anchor_penalty_neg.T
-            denominator_H = W.T @ WH_weighted + self.lambda_anchor * anchor_penalty_pos.T
-
-            H = H * (numerator_H + eps) / (denominator_H + eps)
-            adaptive_alpha = self.alpha_l1 * np.mean(H)
-            H = np.maximum(H - adaptive_alpha, 0)
+        prev_loss, loss = np.inf, np.inf
+        for it in range(iters):
+            WH = W @ H
+            H *= (W.T @ MwV + EPS) / (W.T @ (Mw * WH) + EPS)
 
             WH = W @ H
-            V_weighted = M * huber_weights * V
-            WH_weighted = M * huber_weights * WH
-            numerator_W = V_weighted @ H.T
-            denominator_W = WH_weighted @ H.T
-            W = W * (numerator_W + eps) / (denominator_W + eps)
-            W = np.maximum(W, 0)
+            W *= (MwV @ H.T + EPS) / ((Mw * WH) @ H.T + EPS)
 
-            if iteration % 10 == 0:
-                WH = W @ H
-                residual = M * (V - WH)
-
-                loss = self._huber_loss(residual)
-                loss += self.alpha_l1 * np.sum(np.abs(H))
-                loss += self.lambda_anchor * np.sum(anchor_mask[:, None] * (H.T - anchor_vectors) ** 2)
-
-                if abs(prev_loss - loss) / (prev_loss + eps) < self.tol:
-                    logger.debug(f"NMF converged at iteration {iteration}, loss {loss:.4f}")
-                    break
-
+            if it % self.sparsify_every == 0 or it == iters -1:
+                H = self._sparsify(H)
+            W,H = self._normalize(W,H)
+            
+            if it % 10 == 0 or it == iters - 1:
+                r = V - W @ H
+                loss = float(np.sum(Mw * r * r))
+                rel = (prev_loss - loss) / max(abs(prev_loss), EPS)
+                if rel < -1e-2:
+                    logger.debug("it=%d loss grow to %.2f%% (proection not convex)", it, -100 * rel)
+                if 0 < rel < self.tol:
+                    logger.debug("aligned on it %d, loss %.4f", it, loss)
+                    breakpoint
                 prev_loss = loss
 
-        return W,H
+            n_dead = int(np.sum(H.sum(axis=1) <= EPS))
+            if n_dead:
+                logger.warnind("k=%d, %d dead modules (effective_k %d)", k, n_dead, k - n_dead)
+            return W,H
 
     def _huber_loss(self, residual: np.ndarray) -> float:
         delta = self.huber_delta
